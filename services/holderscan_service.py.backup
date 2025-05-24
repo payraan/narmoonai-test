@@ -1,0 +1,83 @@
+import requests
+import time
+from config.settings import API_KEYS, BASE_URLS
+
+class HolderScanService:
+    def __init__(self):
+        self.api_key = API_KEYS.get("HOLDERSCAN", "FREE")
+        self.base_url = BASE_URLS.get("HOLDERSCAN", "https://api.holderscan.com/v0/sol")
+        self.headers = {
+            "Content-Type": "application/json"
+        }
+        # اضافه کردن API key اگر وجود داشته باشد
+        if self.api_key and self.api_key != "FREE":
+            self.headers["Authorization"] = f"Bearer {self.api_key}"
+    
+    def _make_request(self, endpoint, params=None):
+        """درخواست HTTP عمومی"""
+        try:
+            url = f"{self.base_url}{endpoint}"
+            print(f"Making HolderScan request to: {url}")
+            
+            response = requests.get(url, headers=self.headers, params=params, timeout=30)
+            
+            print(f"HolderScan Response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 429:
+                return {"error": "Rate limit exceeded", "status_code": 429}
+            elif response.status_code == 401:
+                return {"error": "Invalid API key", "status_code": 401}
+            elif response.status_code == 404:
+                return {"error": "Token not found", "status_code": 404}
+            else:
+                return {"error": f"HTTP {response.status_code}", "status_code": response.status_code, "response": response.text}
+                
+        except requests.exceptions.Timeout:
+            return {"error": "Request timeout"}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Request failed: {str(e)}"}
+        except Exception as e:
+            return {"error": f"Unexpected error: {str(e)}"}
+    
+    def token_holders(self, contract_address, chain_id="sol", limit=20):
+        """
+        لیست صفحه‌بندی شده هولدرهای توکن
+        """
+        endpoint = f"/tokens/{contract_address}/holders"
+        params = {
+            "limit": min(limit, 100)  # حداکثر 100
+        }
+        return self._make_request(endpoint, params)
+    
+    def token_stats(self, contract_address, chain_id="sol"):
+        """
+        آمار تجمیعی توکن شامل تمرکز و توزیع
+        """
+        endpoint = f"/tokens/{contract_address}/stats"
+        return self._make_request(endpoint)
+    
+    def holder_deltas(self, contract_address, chain_id="sol"):
+        """
+        تغییرات هولدرها در بازه‌های زمانی مختلف
+        """
+        endpoint = f"/tokens/{contract_address}/holders/deltas"
+        return self._make_request(endpoint)
+    
+    def holder_breakdowns(self, contract_address, chain_id="sol"):
+        """
+        آمار هولدرها بر اساس ارزش نگهداری
+        """
+        endpoint = f"/{chain_id}/tokens/{contract_address}/holders/breakdowns"
+        return self._make_request(endpoint)
+    
+    def token_details(self, contract_address, chain_id="sol"):
+        """
+        جزئیات یک توکن خاص
+        """
+        endpoint = f"/tokens/{contract_address}"
+        return self._make_request(endpoint)
+
+# نمونه global
+holderscan_service = HolderScanService()
