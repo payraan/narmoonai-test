@@ -3,7 +3,6 @@
 """
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from database.operations import get_subscription_status
 
 async def handle_start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """هندلر برای /start"""
@@ -73,19 +72,6 @@ async def handle_crypto_command(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def handle_dex_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """هندلر برای /dex"""
-    user_id = update.effective_user.id
-    subscription_status = get_subscription_status(user_id)
-    
-    if subscription_status == "inactive":
-        await update.message.reply_text(
-            "❌ شما اشتراک فعالی ندارید.\n"
-            "برای استفاده از این بخش، لطفاً اشتراک تهیه کنید.",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription_plans")
-            ]])
-        )
-        return
-    
     keyboard = [
         [InlineKeyboardButton("📊 توکن ترندینگ", callback_data="dex_trending")],
         [InlineKeyboardButton("📈 توکن تاپ گینرز", callback_data="dex_top_gainers")],
@@ -104,19 +90,6 @@ async def handle_dex_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def handle_coin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """هندلر برای /coin"""
-    user_id = update.effective_user.id
-    subscription_status = get_subscription_status(user_id)
-    
-    if subscription_status == "inactive":
-        await update.message.reply_text(
-            "❌ شما اشتراک فعالی ندارید.\n"
-            "برای استفاده از این بخش، لطفاً اشتراک تهیه کنید.",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription_plans")
-            ]])
-        )
-        return
-    
     keyboard = [
         [InlineKeyboardButton("🔥 کوین های داغ", callback_data="coin_hot")],
         [InlineKeyboardButton("🚀 کوین های بازیگران", callback_data="coin_players")],
@@ -133,19 +106,6 @@ async def handle_coin_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def handle_trending_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """هندلر برای /trending"""
-    user_id = update.effective_user.id
-    subscription_status = get_subscription_status(user_id)
-    
-    if subscription_status == "inactive":
-        await update.message.reply_text(
-            "❌ شما اشتراک فعالی ندارید.\n"
-            "برای استفاده از این بخش، لطفاً اشتراک تهیه کنید.",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription_plans")
-            ]])
-        )
-        return
-    
     keyboard = [
         [InlineKeyboardButton("🌐 همه شبکه‌ها", callback_data="trending_all_networks")],
         [InlineKeyboardButton("🔷 اتریوم", callback_data="trending_ethereum")],
