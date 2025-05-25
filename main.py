@@ -1,3 +1,4 @@
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
 from config.settings import TELEGRAM_TOKEN
@@ -26,6 +27,54 @@ from handlers.crypto_handlers import (
 
 from admin.commands import admin_activate, admin_help, admin_user_info, admin_stats, admin_broadcast
 
+# Wrapper functions for commands
+async def dex_wrapper(update, context):
+    """Wrapper for /dex command"""
+    await dex_menu(update, context)
+
+async def coin_wrapper(update, context):
+    """Wrapper for /coin command"""
+    await coin_menu(update, context)
+
+async def trending_wrapper(update, context):
+    """Wrapper for /trending command"""
+    # شبیه‌سازی callback query برای trending
+    class MockCallbackQuery:
+        def __init__(self, message):
+            self.data = 'trending_all_networks'
+            self.message = message
+        
+        async def answer(self):
+            pass
+        
+        async def edit_message_text(self, *args, **kwargs):
+            await self.message.reply_text(*args, **kwargs)
+    
+    update.callback_query = MockCallbackQuery(update.message)
+    await handle_trending_options(update, context)
+
+async def hotcoins_wrapper(update, context):
+    """Wrapper for /hotcoins command"""
+    await coin_menu(update, context)
+
+async def tokeninfo_wrapper(update, context):
+    """Wrapper for /tokeninfo command"""
+    await update.message.reply_text(
+        "🔍 برای اطلاعات توکن، ابتدا به منوی دکس بروید:",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
+        ]])
+    )
+
+async def holders_wrapper(update, context):
+    """Wrapper for /holders command"""
+    await update.message.reply_text(
+        "👥 برای بررسی هولدرها، ابتدا به منوی دکس بروید:",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
+        ]])
+    )
+
 def main():
     # ایجاد پایگاه داده
     init_db()
@@ -33,15 +82,27 @@ def main():
     # ایجاد اپلیکیشن
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    # تعریف conversation handler اصلی با navigation fixes
+    # Command handlers برای menu shortcuts - قبل از ConversationHandler
+    app.add_handler(CommandHandler("analyze", show_market_selection))
+    app.add_handler(CommandHandler("crypto", crypto_menu))
+    app.add_handler(CommandHandler("dex", dex_wrapper))
+    app.add_handler(CommandHandler("coin", coin_wrapper))
+    app.add_handler(CommandHandler("trending", trending_wrapper))
+    app.add_handler(CommandHandler("hotcoins", hotcoins_wrapper))
+    app.add_handler(CommandHandler("tokeninfo", tokeninfo_wrapper))
+    app.add_handler(CommandHandler("holders", holders_wrapper))
+    app.add_handler(CommandHandler("subscription", subscription_plans))
+    app.add_handler(CommandHandler("terms", terms_and_conditions))
+    app.add_handler(CommandHandler("faq", show_faq))
+    app.add_handler(CommandHandler("support", support_contact))
+
+    # تعریف conversation handler اصلی
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
             MAIN_MENU: [
-                # Handle all main menu callbacks
                 CallbackQueryHandler(handle_main_menu),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
-                # Fix: Handle navigation from analysis section back to main menu
                 CallbackQueryHandler(start, pattern="^main_menu$")
             ],
             CRYPTO_MENU: [
@@ -55,14 +116,12 @@ def main():
                 CallbackQueryHandler(handle_trending_options, pattern="^trending_"),
                 CallbackQueryHandler(dex_menu, pattern="^narmoon_dex$"),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
-                # Fix: Handle back to main menu
                 CallbackQueryHandler(start, pattern="^main_menu$")
             ],
             DEX_SUBMENU: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, process_user_input),
                 CallbackQueryHandler(dex_menu, pattern="^narmoon_dex$"),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
-                # Fix: Handle back to main menu
                 CallbackQueryHandler(start, pattern="^main_menu$")
             ],
             COIN_MENU: [
@@ -70,104 +129,39 @@ def main():
                 CallbackQueryHandler(handle_treasury_options, pattern="^treasury_"),
                 CallbackQueryHandler(coin_menu, pattern="^narmoon_coin$"),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
-                # Fix: Handle back to main menu
                 CallbackQueryHandler(start, pattern="^main_menu$")
             ],
             SELECTING_MARKET: [
                 CallbackQueryHandler(handle_market_selection, pattern='^market_'),
-                # Fix: Add navigation handlers for market selection
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$")
             ],
             SELECTING_TIMEFRAME: [
                 CallbackQueryHandler(handle_timeframe_selection, pattern='^tf_'),
-                # Fix: Add navigation handlers for timeframe selection
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$")
             ],
             SELECTING_STRATEGY: [
                 CallbackQueryHandler(handle_strategy_selection, pattern=r'^(strategy_.*|ignore)$'),
-                # Fix: Add navigation handlers for strategy selection
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$"),
                 CallbackQueryHandler(show_timeframes, pattern="^back_to_timeframes$")
             ],
             WAITING_IMAGES: [
                 MessageHandler(filters.PHOTO | filters.Document.IMAGE, receive_images),
-                # Fix: Add navigation handlers for image waiting state
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$")
             ],
         },
         fallbacks=[
             CommandHandler("cancel", cancel),
-            # Fix: Add universal fallback for main menu
             CallbackQueryHandler(start, pattern="^main_menu$")
         ],
         allow_reentry=True
     )
 
-   # افزودن هندلرها
+    # افزودن conversation handler
     app.add_handler(conv_handler)
-
-    # Command handlers برای menu shortcuts
-    app.add_handler(CommandHandler("analyze", show_market_selection))
-    app.add_handler(CommandHandler("crypto", crypto_menu))
-    app.add_handler(CommandHandler("subscription", subscription_plans))
-    app.add_handler(CommandHandler("terms", terms_and_conditions))
-    app.add_handler(CommandHandler("faq", show_faq))
-    app.add_handler(CommandHandler("support", support_contact))
-
-    # Command handlers برای توابع پیچیده‌تر
-    async def trending_wrapper(update, context):
-        # شبیه‌سازی callback query برای trending
-        update.callback_query = type('obj', (object,), {
-            'data': 'trending_all_networks',
-            'answer': lambda: None,
-            'edit_message_text': update.message.reply_text
-        })()
-        await handle_trending_options(update, context)
-
-    async def hotcoins_wrapper(update, context):
-        await coin_menu(update, context)
-
-    async def dex_wrapper(update, context):
-        await dex_menu(update, context)
-
-    async def coin_wrapper(update, context):
-        await coin_menu(update, context)
-
-    async def tokeninfo_wrapper(update, context):
-        await update.message.reply_text(
-            "🔍 برای اطلاعات توکن، ابتدا به منوی دکس بروید:",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
-            ]])
-        )
-
-    async def holders_wrapper(update, context):
-        await update.message.reply_text(
-            "👥 برای بررسی هولدرها، ابتدا به منوی دکس بروید:",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
-            ]])
-        )
-
-    # اضافه کردن handlers
-    app.add_handler(CommandHandler("dex", dex_wrapper))
-    app.add_handler(CommandHandler("coin", coin_wrapper))
-    app.add_handler(CommandHandler("trending", trending_wrapper))
-    app.add_handler(CommandHandler("hotcoins", hotcoins_wrapper))
-    app.add_handler(CommandHandler("tokeninfo", tokeninfo_wrapper))
-    app.add_handler(CommandHandler("holders", holders_wrapper)) 
-  
-    async def holders_wrapper(update, context):
-        await update.message.reply_text(
-            "👥 برای بررسی هولدرها، ابتدا به منوی دکس بروید:",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
-            ]])
-        )
 
     # دستورات مدیریتی
     app.add_handler(CommandHandler("activate", admin_activate))
