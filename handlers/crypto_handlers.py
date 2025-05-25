@@ -825,7 +825,7 @@ def format_recently_updated_tokens(data):
     if not tokens:
         return "❌ هیچ توکن به‌روزرسانی شده‌ای یافت نشد."
     
-    for i, token in enumerate(tokens[:10], 1):
+    for i, token in enumerate(tokens[:15], 1):
         if isinstance(token, dict):
             attributes = token.get("attributes", {})
             name = attributes.get("name", "نامشخص")
@@ -865,7 +865,7 @@ def format_boosted_tokens(data):
     
     message = "🚀 **توکن‌های تقویت‌شده**\n\n"
     
-    tokens = data[:10]
+    tokens = data[:15]
     for i, token in enumerate(tokens, 1):
         # استخراج بهتر نام توکن
         token_name = "نامشخص"
@@ -944,7 +944,7 @@ def format_trending_all_networks(data):
     if not pools:
         return "❌ هیچ توکن ترندی یافت نشد."
     
-    for i, pool in enumerate(pools[:10], 1):
+    for i, pool in enumerate(pools[:15], 1):
         if isinstance(pool, dict):
             attributes = pool.get("attributes", {})
             base_token = attributes.get("base_token", {})
@@ -1278,7 +1278,7 @@ def format_trending_coins(data):
     
     message = "🔥 **کوین‌های ترند**\n\n"
     
-    coins = data["coins"][:10]
+    coins = data["coins"][:15]
     for i, coin_data in enumerate(coins, 1):
         item = coin_data.get("item", {})
         name = item.get("name", "نامشخص")
@@ -1354,7 +1354,7 @@ def format_companies_treasury(data, coin_id):
     
     message = f"🏢 **ذخایر {coin_name} شرکت‌ها**\n\n"
     
-    companies = data["companies"][:10]
+    companies = data["companies"][:15]
     total_holdings = 0
     
     for i, company in enumerate(companies, 1):
@@ -1413,7 +1413,7 @@ def format_snipers_info(data):
     message = "🎯 **اسنایپرهای توکن**\n\n"
     
     if isinstance(data, list) and data:
-        for i, sniper in enumerate(data[:10], 1):
+        for i, sniper in enumerate(data[:15], 1):
             address = sniper.get("address", "نامشخص")[:8] + "..."
             amount = sniper.get("amount", 0)
             
