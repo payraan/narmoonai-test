@@ -117,17 +117,21 @@ async def dex_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'token_holders': '👥 بررسی هولدرهای توکن'
     }
 
-    keyboard = []
-    for key, label in dex_options.items():
-        # گزینه‌های نیازمند آدرس توکن
-        input_required = key in ['token_info', 'token_snipers', 'token_holders']
-        
-        if not has_premium and input_required:
-            label = f"🔒 {label}"
-        
-        keyboard.append([InlineKeyboardButton(label, callback_data=f"dex_{key}")])
-
-    keyboard.append([InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")])
+    keyboard = [
+    [
+        InlineKeyboardButton("🔍 اطلاعات توکن" if has_premium else "🔒 اطلاعات توکن", callback_data="dex_token_info"),
+        InlineKeyboardButton("🔥 توکن‌های ترند", callback_data="dex_trending_tokens")
+    ],
+    [
+        InlineKeyboardButton("🔄 توکن‌های به‌روزرسانی شده", callback_data="dex_recently_updated"),
+        InlineKeyboardButton("🚀 توکن‌های تقویت‌شده", callback_data="dex_boosted_tokens")
+    ],
+    [
+        InlineKeyboardButton("🎯 اسنایپرهای توکن" if has_premium else "🔒 اسنایپرهای توکن", callback_data="dex_token_snipers"),
+        InlineKeyboardButton("👥 بررسی هولدرهای توکن" if has_premium else "🔒 بررسی هولدرهای توکن", callback_data="dex_token_holders")
+    ],
+    [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
+] 
 
     await query.edit_message_text(
         "🔄 **نارموون دکس**\n\n"
