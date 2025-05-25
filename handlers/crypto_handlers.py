@@ -120,7 +120,7 @@ async def dex_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
     [
-        InlineKeyboardButton("🔍 اطلاعات توکن" if has_premium else "🔒 اطلاعات توکن", callback_data="dex_token_info"),
+        InlineKeyboardButton("🔍 اطلاعات توکن", callback_data="dex_token_info"),
         InlineKeyboardButton("🔥 توکن های داغ", callback_data="dex_trending_tokens")
     ],
     [
@@ -128,8 +128,8 @@ async def dex_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         InlineKeyboardButton("🚀 توکن‌های تقویت‌شده", callback_data="dex_boosted_tokens")
     ],
     [
-        InlineKeyboardButton("🎯 اسنایپرهای توکن" if has_premium else "🔒 اسنایپرهای توکن", callback_data="dex_token_snipers"),
-        InlineKeyboardButton("👥 بررسی هولدرها" if has_premium else "🔒 بررسی هولدر ها", callback_data="dex_token_holders")
+        InlineKeyboardButton("🎯 اسنایپرهای توکن", callback_data="dex_token_snipers"),
+        InlineKeyboardButton("👥 بررسی هولدر ها", callback_data="dex_token_holders")
     ],
     [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
 ] 
@@ -167,8 +167,8 @@ async def coin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🌍 آمار جهانی کریپتو", callback_data="coin_global_stats")
         ],
         [
-            InlineKeyboardButton("🏦 آمار DeFi" if has_premium else "🔒 آمار DeFi", callback_data="coin_defi_stats"),
-            InlineKeyboardButton("🏢 ذخایر شرکت‌ها" if has_premium else "🔒 ذخایر شرکت‌ها", callback_data="coin_companies_treasury")
+            InlineKeyboardButton("🏦 آمار DeFi", callback_data="coin_defi_stats"),
+            InlineKeyboardButton("🏢 ذخایر شرکت‌ها", callback_data="coin_companies_treasury")
         ],
         [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
     ]
@@ -192,11 +192,11 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     has_premium = check_subscription(user_id)
 
-    # بررسی دسترسی
-    premium_required = option in ['token_info', 'token_snipers', 'token_holders']
-    if not has_premium and premium_required:
-        await query.answer("⚠️ این قابلیت نیاز به اشتراک دارد", show_alert=True)
-        return DEX_MENU
+    # بررسی دسترسی - همه قابلیت‌ها آزاد شد
+    # premium_required = option in ['token_info', 'token_snipers', 'token_holders'] 
+    # if not has_premium and premium_required:
+    #     await query.answer("⚠️ این قابلیت نیاز به اشتراک دارد", show_alert=True)
+    #     return DEX_MENU
 
     # بررسی محدودیت API
     if not check_user_api_limit(user_id, has_premium):
@@ -307,11 +307,11 @@ async def handle_coin_option(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = update.effective_user.id
     has_premium = check_subscription(user_id)
 
-    # بررسی دسترسی
-    free_features = ['general_search', 'trending_coins', 'global_stats']
-    if not has_premium and option not in free_features:
-        await query.answer("⚠️ این قابلیت نیاز به اشتراک دارد", show_alert=True)
-        return COIN_MENU
+    # بررسی دسترسی - همه قابلیت‌ها آزاد شد
+    # free_features = ['general_search', 'trending_coins', 'global_stats']
+    # if not has_premium and option not in free_features:
+    #     await query.answer("⚠️ این قابلیت نیاز به اشتراک دارد", show_alert=True)
+    #     return COIN_MENU
 
     # بررسی محدودیت API
     if not check_user_api_limit(user_id, has_premium):
