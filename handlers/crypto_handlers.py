@@ -111,25 +111,25 @@ async def dex_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     dex_options = {
         'token_info': '🔍 اطلاعات توکن',
-        'trending_tokens': '🔥 توکن‌های ترند', 
-        'recently_updated': '🔄 توکن‌های به‌روزرسانی شده',
+        'trending_tokens': '🔥 توکن های داغ', 
+        'recently_updated': '🔄 توکن های آپدیت',
         'boosted_tokens': '🚀 توکن‌های تقویت‌شده',
         'token_snipers': '🎯 اسنایپرهای توکن',
-        'token_holders': '👥 بررسی هولدرهای توکن'
+        'token_holders': '👥 بررسی هولدرها',
     }
 
     keyboard = [
     [
         InlineKeyboardButton("🔍 اطلاعات توکن" if has_premium else "🔒 اطلاعات توکن", callback_data="dex_token_info"),
-        InlineKeyboardButton("🔥 توکن‌های ترند", callback_data="dex_trending_tokens")
+        InlineKeyboardButton("🔥 توکن های داغ", callback_data="dex_trending_tokens")
     ],
     [
-        InlineKeyboardButton("🔄 توکن‌های به‌روزرسانی شده", callback_data="dex_recently_updated"),
+        InlineKeyboardButton("🔄 توکن‌های آپدیت", callback_data="dex_recently_updated"),
         InlineKeyboardButton("🚀 توکن‌های تقویت‌شده", callback_data="dex_boosted_tokens")
     ],
     [
         InlineKeyboardButton("🎯 اسنایپرهای توکن" if has_premium else "🔒 اسنایپرهای توکن", callback_data="dex_token_snipers"),
-        InlineKeyboardButton("👥 بررسی هولدرهای توکن" if has_premium else "🔒 بررسی هولدرهای توکن", callback_data="dex_token_holders")
+        InlineKeyboardButton("👥 بررسی هولدرها" if has_premium else "🔒 بررسی هولدر ها", callback_data="dex_token_holders")
     ],
     [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
 ] 
@@ -153,17 +153,17 @@ async def coin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     has_premium = check_subscription(user_id)
 
     coin_options = {
-        'general_search': '🔎 جستجوی عمومی',
-        'trending_coins': '🔥 کوین‌های ترند',
+        'general_search': '🔎 جستجوی کوین ها',
+        'trending_coins': '🔥 کوین های داغ',
         'global_stats': '🌍 آمار جهانی کریپتو',
         'defi_stats': '🏦 آمار DeFi',
         'companies_treasury': '🏢 ذخایر شرکت‌ها'
     }
 
     keyboard = [
-        [InlineKeyboardButton("🔎 جستجوی عمومی", callback_data="coin_general_search")],
+        [InlineKeyboardButton("🔎 جستجوی کوین ها", callback_data="coin_general_search")],
         [
-            InlineKeyboardButton("🔥 کوین‌های ترند", callback_data="coin_trending_coins"),
+            InlineKeyboardButton("🔥 کوین های داغ", callback_data="coin_trending_coins"),
             InlineKeyboardButton("🌍 آمار جهانی کریپتو", callback_data="coin_global_stats")
         ],
         [
@@ -227,7 +227,7 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return DEX_SUBMENU
 
         elif option == 'trending_tokens':
-            # نمایش زیرمنوی توکن‌های ترند
+            # نمایش زیر منو های توکن های داغ
             keyboard = [
                 [InlineKeyboardButton("🌍 همه شبکه‌ها", callback_data="trending_all_networks")],
                 [InlineKeyboardButton("🔗 سولانا فقط", callback_data="trending_solana_only")],
@@ -235,7 +235,7 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             
             await query.edit_message_text(
-                "🔥 **توکن‌های ترند**\n\n"
+                "🔥 **توکن های داغ**\n\n"
                 "لطفاً یکی از گزینه‌ها را انتخاب کنید:",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode='Markdown'
@@ -267,7 +267,7 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['action_type'] = 'token_holders'
             
             await query.edit_message_text(
-                "👥 **بررسی هولدرهای توکن**\n\n"
+                "👥 **بررسی هولدرها**\n\n"
                 "لطفاً آدرس قرارداد توکن سولانا را ارسال کنید:\n\n"
                 "مثال: `7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr`\n\n"
                 "برای لغو: /cancel",
@@ -393,7 +393,7 @@ async def handle_coin_option(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return COIN_MENU
 
 async def handle_trending_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """پردازش گزینه‌های توکن‌های ترند"""
+    """پردازش گزینه های توکن های داغ"""
     query = update.callback_query
     await query.answer()
 
@@ -804,11 +804,11 @@ def format_token_info_enhanced(data):
     return message
 
 def format_recently_updated_tokens(data):
-    """فرمت کردن توکن‌های به‌روزرسانی شده - آدرس کامل"""
+    """فرمت کردن توکن های آپدیت"""
     if isinstance(data, dict) and data.get("error"):
-        return "❌ خطا در دریافت اطلاعات توکن‌های به‌روزرسانی شده."
+        return "❌ خطا در دریافت اطلاعات توکن های آپدیت."
     
-    message = "🔄 **توکن‌های به‌روزرسانی شده**\n\n"
+    message = "🔄 **توکن‌های آپدیت**\n\n"
     
     # بررسی ساختار داده
     tokens = []
@@ -923,11 +923,11 @@ def format_boosted_tokens(data):
     return message
 
 def format_trending_all_networks(data):
-    """فرمت کردن توکن‌های ترند همه شبکه‌ها - بهبود یافته"""
+    """فرمت کردن توکن های داغ همه شبکه ها - بهبود یافته"""
     if isinstance(data, dict) and data.get("error"):
         return "❌ خطا در دریافت توکن‌های ترند."
     
-    message = "🌍 **توکن‌های ترند همه شبکه‌ها**\n\n"
+    message = "🌍 **توکن های داغ همه شبکه ها**\n\n"
     
     # بررسی ساختار داده
     pools = []
@@ -1014,11 +1014,11 @@ def format_trending_all_networks(data):
     return message
 
 def format_combined_solana_trending(data):
-    """فرمت کردن توکن‌های ترند سولانا ترکیبی - با آدرس"""
+    """فرمت کردن توکن های داغ سولانا ترکیبی - با آدرس"""
     if not data.get("success"):
         return "❌ خطا در دریافت توکن‌های ترند سولانا."
     
-    message = "🔗 **توکن‌های ترند سولانا**\n\n"
+    message = "🔗 **توکن های داغ سولانا**\n\n"
     
     tokens = data.get("combined_tokens", [])[:15]
     for i, token in enumerate(tokens, 1):
@@ -1276,7 +1276,7 @@ def format_trending_coins(data):
     if data.get("error") or "coins" not in data:
         return "❌ خطا در دریافت کوین‌های ترند."
     
-    message = "🔥 **کوین‌های ترند**\n\n"
+    message = "🔥 **کوین های داغ**\n\n"
     
     coins = data["coins"][:15]
     for i, coin_data in enumerate(coins, 1):
