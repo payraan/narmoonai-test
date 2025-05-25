@@ -254,7 +254,7 @@ class DirectAPIService:
                 
                 print(f"Processing {len(pools)} pools from GeckoTerminal")
                 
-                for i, pool in enumerate(pools[:10]):
+                for i, pool in enumerate(pools[:15]):
                     try:
                         if isinstance(pool, dict) and "attributes" in pool:
                             attributes = pool["attributes"]
