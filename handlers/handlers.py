@@ -133,19 +133,20 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_market_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش لیست بازارها برای انتخاب"""
-    market_buttons = []
-    
-    # اضافه کردن دکمه‌های بازار
-    for market_key, market_name in MARKETS.items():
-        market_buttons.append([
-            InlineKeyboardButton(market_name, callback_data=f"market_{market_key}")
-        ])
-    
-    # دکمه بازگشت
-    market_buttons.append([
-        InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
-    ])
-    
+   
+    market_buttons = [
+        [InlineKeyboardButton("🪙 رمزارزها (کریپتوکارنسی)", callback_data="market_crypto")],
+        [
+            InlineKeyboardButton("💱 فارکس (جفت ارزها)", callback_data="market_forex"),
+            InlineKeyboardButton("🥇 طلا", callback_data="market_gold")
+        ],
+        [
+            InlineKeyboardButton("📈 سهام خارجی", callback_data="market_international_stocks"),
+            InlineKeyboardButton("📊 سهام ایران", callback_data="market_iranian_stocks")
+        ],
+        [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
+    ]
+ 
     market_markup = InlineKeyboardMarkup(market_buttons)
     
     await update.callback_query.edit_message_text(
