@@ -30,10 +30,36 @@ from admin.commands import admin_activate, admin_help, admin_user_info, admin_st
 # Wrapper functions for commands
 async def dex_wrapper(update, context):
     """Wrapper for /dex command"""
+    # ایجاد mock callback_query برای سازگاری با تابع اصلی
+    class MockCallbackQuery:
+        def __init__(self, message):
+            self.message = message
+            self.data = "narmoon_dex"
+        
+        async def answer(self):
+            pass
+        
+        async def edit_message_text(self, *args, **kwargs):
+            await self.message.reply_text(*args, **kwargs)
+    
+    update.callback_query = MockCallbackQuery(update.message)
     await dex_menu(update, context)
 
 async def coin_wrapper(update, context):
     """Wrapper for /coin command"""
+    # ایجاد mock callback_query برای سازگاری با تابع اصلی
+    class MockCallbackQuery:
+        def __init__(self, message):
+            self.message = message
+            self.data = "narmoon_coin"
+        
+        async def answer(self):
+            pass
+        
+        async def edit_message_text(self, *args, **kwargs):
+            await self.message.reply_text(*args, **kwargs)
+    
+    update.callback_query = MockCallbackQuery(update.message)
     await coin_menu(update, context)
 
 async def trending_wrapper(update, context):
@@ -66,6 +92,22 @@ async def tokeninfo_wrapper(update, context):
         ]])
     )
 
+async def analyze_wrapper(update, context):
+    """Wrapper for /analyze command"""
+    await show_market_selection(update, context)
+
+async def faq_wrapper(update, context):
+    """Wrapper for /faq command"""
+    await show_faq(update, context)
+
+async def terms_wrapper(update, context):
+    """Wrapper for /terms command"""
+    await terms_and_conditions(update, context)
+
+async def support_wrapper(update, context):
+    """Wrapper for /support command"""
+    await support_contact(update, context)
+
 async def holders_wrapper(update, context):
     """Wrapper for /holders command"""
     await update.message.reply_text(
@@ -83,7 +125,7 @@ def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     # Command handlers برای menu shortcuts - قبل از ConversationHandler
-    app.add_handler(CommandHandler("analyze", show_market_selection))
+    app.add_handler(CommandHandler("analyze", analyze_wrapper))
     app.add_handler(CommandHandler("crypto", crypto_menu))
     app.add_handler(CommandHandler("dex", dex_wrapper))
     app.add_handler(CommandHandler("coin", coin_wrapper))
@@ -92,9 +134,9 @@ def main():
     app.add_handler(CommandHandler("tokeninfo", tokeninfo_wrapper))
     app.add_handler(CommandHandler("holders", holders_wrapper))
     app.add_handler(CommandHandler("subscription", subscription_plans))
-    app.add_handler(CommandHandler("terms", terms_and_conditions))
-    app.add_handler(CommandHandler("faq", show_faq))
-    app.add_handler(CommandHandler("support", support_contact))
+    app.add_handler(CommandHandler("terms", terms_wrapper))
+    app.add_handler(CommandHandler("faq", faq_wrapper))
+    app.add_handler(CommandHandler("support", support_wrapper))
 
     # تعریف conversation handler اصلی
     conv_handler = ConversationHandler(
