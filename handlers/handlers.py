@@ -25,18 +25,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.effective_user.username
     register_user(user_id, username)
     
-    # ایجاد منوی اصلی
+   # ایجاد منوی اصلی
     main_menu_buttons = [
         [InlineKeyboardButton("📊 تحلیل نمودارها", callback_data="analyze_charts")],
-        [InlineKeyboardButton("🪙 رمزارز", callback_data="crypto")],  # گزینه جدید
-        [InlineKeyboardButton("📚 راهنمای استفاده", callback_data="guide")],
-        [InlineKeyboardButton("🛒 محصولات نارموون", callback_data="narmoon_products")],
+        [InlineKeyboardButton("🪙 رمزارز", callback_data="crypto")],
+        [
+        InlineKeyboardButton("📚 راهنمای استفاده", callback_data="guide"),
+        InlineKeyboardButton("🛒 محصولات نارموون", callback_data="narmoon_products")
+        ],
         [InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription")],
         [InlineKeyboardButton("🧠 قابلیت‌های دستیار هوش مصنوعی", callback_data="ai_features")],
-        [InlineKeyboardButton("❓ سوالات متداول", callback_data="faq")],
-        [InlineKeyboardButton("📜 قوانین و مقررات", callback_data="terms")],
+        [
+        InlineKeyboardButton("❓ سوالات متداول", callback_data="faq"),
+        InlineKeyboardButton("📜 قوانین و مقررات", callback_data="terms")
+        ],
         [InlineKeyboardButton("👨‍💻 ارتباط با پشتیبانی", callback_data="support")]
-    ]
+        ]
     
     main_menu_markup = InlineKeyboardMarkup(main_menu_buttons)
     
