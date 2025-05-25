@@ -27,10 +27,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
    # ایجاد منوی اصلی
     main_menu_buttons = [
-        [InlineKeyboardButton("📊 تحلیل نمودارها", callback_data="analyze_charts")],
+        [InlineKeyboardButton("📊 تحلیل نمودارها با هوش مصنوعی TNT", callback_data="analyze_charts")],
         [InlineKeyboardButton("🪙 رمزارز", callback_data="crypto")],
         [
-        InlineKeyboardButton("📚 راهنمای استفاده", callback_data="guide"),
+        InlineKeyboardButton("📚 دفترچه راهنما", callback_data="guide"),
         InlineKeyboardButton("🛒 محصولات نارموون", callback_data="narmoon_products")
         ],
         [InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription")],
@@ -135,9 +135,9 @@ async def show_market_selection(update: Update, context: ContextTypes.DEFAULT_TY
     """نمایش لیست بازارها برای انتخاب"""
    
     market_buttons = [
-        [InlineKeyboardButton("🪙 رمزارزها (کریپتوکارنسی)", callback_data="market_crypto")],
+        [InlineKeyboardButton("🪙 رمزارزها)", callback_data="market_crypto")],
         [
-            InlineKeyboardButton("💱 فارکس (جفت ارزها)", callback_data="market_forex"),
+            InlineKeyboardButton("💱 فارکس)", callback_data="market_forex"),
             InlineKeyboardButton("🥇 طلا", callback_data="market_gold")
         ],
         [
