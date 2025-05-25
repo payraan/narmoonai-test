@@ -107,8 +107,36 @@ def main():
         allow_reentry=True
     )
 
-    # افزودن هندلرها
+   # افزودن هندلرها
     app.add_handler(conv_handler)
+    
+    # Command handlers برای menu shortcuts
+    app.add_handler(CommandHandler("analyze", show_market_selection))
+    app.add_handler(CommandHandler("crypto", crypto_menu))
+    app.add_handler(CommandHandler("dex", dex_menu))
+    app.add_handler(CommandHandler("coin", coin_menu))
+    app.add_handler(CommandHandler("subscription", subscription_plans))
+    app.add_handler(CommandHandler("terms", terms_and_conditions))
+    app.add_handler(CommandHandler("faq", show_faq))
+    app.add_handler(CommandHandler("support", support_contact))
+    
+    # Command handlers برای توابع پیچیده‌تر
+    async def trending_wrapper(update, context):
+        await handle_trending_options(update, context)
+    
+    async def hotcoins_wrapper(update, context):
+        await coin_menu(update, context)
+    
+    async def tokeninfo_wrapper(update, context):
+        await dex_menu(update, context)
+    
+    async def holders_wrapper(update, context):
+        await dex_menu(update, context)
+    
+    app.add_handler(CommandHandler("trending", trending_wrapper))
+    app.add_handler(CommandHandler("hotcoins", hotcoins_wrapper))
+    app.add_handler(CommandHandler("tokeninfo", tokeninfo_wrapper))
+    app.add_handler(CommandHandler("holders", holders_wrapper))
 
     # دستورات مدیریتی
     app.add_handler(CommandHandler("activate", admin_activate))
