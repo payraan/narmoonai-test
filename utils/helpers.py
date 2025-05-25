@@ -105,3 +105,24 @@ class SimpleCache:
 
 # نمونه global از کش
 cache = SimpleCache()
+
+def format_token_price(price_str):
+    """
+    فرمت کردن قیمت توکن با حداکثر 4 رقم اعشار
+    """
+    try:
+        price = float(price_str)
+        
+        if price >= 1:
+            # قیمت‌های بالای 1 دلار - 2 رقم اعشار
+            return f"${price:,.2f}"
+        elif price >= 0.0001:
+            # قیمت‌های بین 0.0001 تا 1 دلار - 4 رقم اعشار
+            return f"${price:.4f}"
+        elif price > 0:
+            # قیمت‌های خیلی کوچک - نمایش علمی
+            return f"${price:.2e}"
+        else:
+            return "$0.0000"
+    except (ValueError, TypeError):
+        return str(price_str)

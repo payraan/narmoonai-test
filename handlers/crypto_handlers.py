@@ -15,6 +15,7 @@ from database.operations import check_subscription, check_user_api_limit, log_ap
 import asyncio
 from database.operations import check_subscription, check_user_api_limit, log_api_request
 import asyncio
+from utils.helpers import format_token_price
 
 async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش منوی رمزارز با اطلاعات بازار به‌روزرسانی شده"""
@@ -601,7 +602,7 @@ def format_token_info_enhanced(data):
                     formatted_price = f"${price_val:,.4f}"
                 message += f"• قیمت فعلی: **{formatted_price}**\n"
             except:
-                message += f"• قیمت فعلی: **${price_usd}**\n"
+                message += f"• قیمت فعلی: **{format_token_price(price_usd)}**\n"
 
         # مارکت کپ
         market_cap = pools_data.get("market_cap_usd")
@@ -851,7 +852,7 @@ def format_recently_updated_tokens(data):
                         formatted_price = f"${price_val:,.4f}"
                     message += f"   💰 قیمت: {formatted_price}\n"
                 except:
-                    message += f"   💰 قیمت: ${price}\n"
+                    message += f"   💰 قیمت: {format_token_price(price)}\n"
             
             message += "\n"
     
@@ -1002,7 +1003,7 @@ def format_trending_all_networks(data):
             
             message += f"{i}. **{name}** ({symbol})\n"
             message += f"   🌐 شبکه: {network}\n"
-            message += f"   💰 قیمت: ${price}\n"
+            message += f"   💰 قیمت: {format_token_price(price)}\n"
             message += f"   📈 تغییر 24س: {price_change:+.2f}%\n"
             if volume > 0:
                 message += f"   📊 حجم: ${volume:,.0f}\n"
@@ -1043,7 +1044,7 @@ def format_combined_solana_trending(data):
         message += f"{i}. **{name}** ({symbol})\n"
         message += f"   🌐 شبکه: Solana\n"
         message += f"   📊 منبع: {source}\n"
-        message += f"   💰 قیمت: ${price}\n"
+        message += f"   💰 قیمت: {format_token_price(price)}\n"
         message += f"   📈 تغییر 24س: {price_change:+.2f}%\n"
         
         # اضافه کردن حجم
