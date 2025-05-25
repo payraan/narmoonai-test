@@ -170,9 +170,20 @@ async def handle_market_selection(update: Update, context: ContextTypes.DEFAULT_
 
 async def show_timeframes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش لیست تایم‌فریم‌ها برای انتخاب"""
-    timeframe_buttons = []
-    for tf in TIMEFRAMES:
-        timeframe_buttons.append([InlineKeyboardButton(tf, callback_data=f"tf_{tf}")])
+
+    timeframe_buttons = [
+        [
+            InlineKeyboardButton("۱ دقیقه", callback_data="tf_۱ دقیقه"),
+            InlineKeyboardButton("۵ دقیقه", callback_data="tf_۵ دقیقه"),
+            InlineKeyboardButton("۱۵ دقیقه", callback_data="tf_۱۵ دقیقه")
+        ],
+        [
+            InlineKeyboardButton("۱ ساعته", callback_data="tf_۱ ساعته"),
+            InlineKeyboardButton("۴ ساعته", callback_data="tf_۴ ساعته"),
+            InlineKeyboardButton("روزانه", callback_data="tf_روزانه")
+        ],
+        [InlineKeyboardButton("هفتگی", callback_data="tf_هفتگی")]
+    ]
     
     # Fix: بهبود navigation buttons
     timeframe_buttons.append([
