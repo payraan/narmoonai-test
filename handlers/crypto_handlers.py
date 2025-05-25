@@ -159,15 +159,18 @@ async def coin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'companies_treasury': '🏢 ذخایر شرکت‌ها'
     }
 
-    keyboard = []
-    for key, label in coin_options.items():
-        free_features = ['general_search', 'trending_coins', 'global_stats']
-        if not has_premium and key not in free_features:
-            label = f"🔒 {label}"
-        
-        keyboard.append([InlineKeyboardButton(label, callback_data=f"coin_{key}")])
-
-    keyboard.append([InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")])
+    keyboard = [
+        [InlineKeyboardButton("🔎 جستجوی عمومی", callback_data="coin_general_search")],
+        [
+            InlineKeyboardButton("🔥 کوین‌های ترند", callback_data="coin_trending_coins"),
+            InlineKeyboardButton("🌍 آمار جهانی کریپتو", callback_data="coin_global_stats")
+        ],
+        [
+            InlineKeyboardButton("🏦 آمار DeFi" if has_premium else "🔒 آمار DeFi", callback_data="coin_defi_stats"),
+            InlineKeyboardButton("🏢 ذخایر شرکت‌ها" if has_premium else "🔒 ذخایر شرکت‌ها", callback_data="coin_companies_treasury")
+        ],
+        [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
+    ]
 
     await query.edit_message_text(
         "💰 **نارموون کوین**\n\n"
