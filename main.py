@@ -109,34 +109,65 @@ def main():
 
    # افزودن هندلرها
     app.add_handler(conv_handler)
-    
+
     # Command handlers برای menu shortcuts
     app.add_handler(CommandHandler("analyze", show_market_selection))
     app.add_handler(CommandHandler("crypto", crypto_menu))
-    app.add_handler(CommandHandler("dex", dex_menu))
-    app.add_handler(CommandHandler("coin", coin_menu))
     app.add_handler(CommandHandler("subscription", subscription_plans))
     app.add_handler(CommandHandler("terms", terms_and_conditions))
     app.add_handler(CommandHandler("faq", show_faq))
     app.add_handler(CommandHandler("support", support_contact))
-    
+
     # Command handlers برای توابع پیچیده‌تر
     async def trending_wrapper(update, context):
+        # شبیه‌سازی callback query برای trending
+        update.callback_query = type('obj', (object,), {
+            'data': 'trending_all_networks',
+            'answer': lambda: None,
+            'edit_message_text': update.message.reply_text
+        })()
         await handle_trending_options(update, context)
-    
+
     async def hotcoins_wrapper(update, context):
         await coin_menu(update, context)
-    
+
+    async def dex_wrapper(update, context):
+        await dex_menu(update, context)
+
+    async def coin_wrapper(update, context):
+        await coin_menu(update, context)
+
     async def tokeninfo_wrapper(update, context):
-        await dex_menu(update, context)
-    
+        await update.message.reply_text(
+            "🔍 برای اطلاعات توکن، ابتدا به منوی دکس بروید:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
+            ]])
+        )
+
     async def holders_wrapper(update, context):
-        await dex_menu(update, context)
-    
+        await update.message.reply_text(
+            "👥 برای بررسی هولدرها، ابتدا به منوی دکس بروید:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
+            ]])
+        )
+
+    # اضافه کردن handlers
+    app.add_handler(CommandHandler("dex", dex_wrapper))
+    app.add_handler(CommandHandler("coin", coin_wrapper))
     app.add_handler(CommandHandler("trending", trending_wrapper))
     app.add_handler(CommandHandler("hotcoins", hotcoins_wrapper))
     app.add_handler(CommandHandler("tokeninfo", tokeninfo_wrapper))
-    app.add_handler(CommandHandler("holders", holders_wrapper))
+    app.add_handler(CommandHandler("holders", holders_wrapper)) 
+  
+    async def holders_wrapper(update, context):
+        await update.message.reply_text(
+            "👥 برای بررسی هولدرها، ابتدا به منوی دکس بروید:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
+            ]])
+        )
 
     # دستورات مدیریتی
     app.add_handler(CommandHandler("activate", admin_activate))
