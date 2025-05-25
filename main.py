@@ -20,7 +20,7 @@ from handlers.handlers import (
 )
 
 from handlers.crypto_handlers import (
-    crypto_menu, dex_menu, coin_menu,
+    crypto_menu, 
     handle_dex_option, handle_coin_option,
     handle_trending_options, handle_treasury_options,
     process_user_input
@@ -32,46 +32,66 @@ from admin.commands import admin_activate, admin_help, admin_user_info, admin_st
 @debug_wrapper("dex_wrapper")
 async def dex_wrapper(update, context):
     """Wrapper for /dex command"""
-    logger.info("Creating MockCallbackQuery for dex_menu")
-    # ایجاد mock callback_query برای سازگاری با تابع اصلی
-    class MockCallbackQuery:
-        def __init__(self, message):
-            self.message = message
-            self.data = "narmoon_dex"
-        
-        async def answer(self):
-            logger.info("MockCallbackQuery.answer() called")
-            pass
-        
-        async def edit_message_text(self, *args, **kwargs):
-            logger.info(f"MockCallbackQuery.edit_message_text called with: {args[0][:50]}...")
-            await self.message.reply_text(*args, **kwargs)
+    from handlers.crypto_handlers import get_dex_menu_keyboard
+    from database.operations import get_subscription_status
     
-    update.callback_query = MockCallbackQuery(update.message)
-    logger.info("Calling dex_menu function")
-    await dex_menu(update, context)
+    user_id = update.effective_user.id
+    subscription_status = get_subscription_status(user_id)
+    
+    if subscription_status == "inactive":
+        await update.message.reply_text(
+            "❌ شما اشتراک فعالی ندارید.\n"
+            "برای استفاده از این بخش، لطفاً اشتراک تهیه کنید.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription_plans")
+            ]])
+        )
+        return
+    
+    text = "🔄 نارموون دکس - انتخاب کنید:"
+    keyboard = get_dex_menu_keyboard() if hasattr(crypto_handlers, 'get_dex_menu_keyboard') else [
+        [InlineKeyboardButton("📊 توکن ترندینگ", callback_data="dex_trending")],
+        [InlineKeyboardButton("📈 توکن تاپ گینرز", callback_data="dex_top_gainers")],
+        [InlineKeyboardButton("📉 توکن تاپ لوزرز", callback_data="dex_top_losers")],
+        [InlineKeyboardButton("🔍 جستجوی توکن", callback_data="dex_search")],
+        [InlineKeyboardButton("🔎 آدرس دکس", callback_data="dex_address")],
+        [InlineKeyboardButton("📊 تحلیل هولدرها", callback_data="dex_holders")],
+        [InlineKeyboardButton("📄 اطلاعات توکن", callback_data="dex_token_info")],
+        [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
+    ]
+    
+    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 @debug_wrapper("coin_wrapper")
 async def coin_wrapper(update, context):
     """Wrapper for /coin command"""
-    logger.info("Creating MockCallbackQuery for coin_menu")
-    # ایجاد mock callback_query برای سازگاری با تابع اصلی
-    class MockCallbackQuery:
-        def __init__(self, message):
-            self.message = message
-            self.data = "narmoon_coin"
-        
-        async def answer(self):
-            logger.info("MockCallbackQuery.answer() called")
-            pass
-        
-        async def edit_message_text(self, *args, **kwargs):
-            logger.info(f"MockCallbackQuery.edit_message_text called with: {args[0][:50]}...")
-            await self.message.reply_text(*args, **kwargs)
+    from handlers.crypto_handlers import get_coin_menu_keyboard
+    from database.operations import get_subscription_status
     
-    update.callback_query = MockCallbackQuery(update.message)
-    logger.info("Calling coin_menu function")
-    await coin_menu(update, context)
+    user_id = update.effective_user.id
+    subscription_status = get_subscription_status(user_id)
+    
+    if subscription_status == "inactive":
+        await update.message.reply_text(
+            "❌ شما اشتراک فعالی ندارید.\n"
+            "برای استفاده از این بخش، لطفاً اشتراک تهیه کنید.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription_plans")
+            ]])
+        )
+        return
+    
+    text = "🪙 نارموون کوین - انتخاب کنید:"
+    keyboard = get_coin_menu_keyboard() if hasattr(crypto_handlers, 'get_coin_menu_keyboard') else [
+        [InlineKeyboardButton("🔥 کوین های داغ", callback_data="coin_hot")],
+        [InlineKeyboardButton("🚀 کوین های بازیگران", callback_data="coin_players")],
+        [InlineKeyboardButton("💰 کوین های معاملاتی", callback_data="coin_trading")],
+        [InlineKeyboardButton("💎 کوین های ذخیره ارزش", callback_data="coin_store_of_value")],
+        [InlineKeyboardButton("🏛️ تحلیل ترژری", callback_data="coin_treasury")],
+        [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
+    ]
+    
+    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def trending_wrapper(update, context):
     """Wrapper for /trending command"""
@@ -103,21 +123,74 @@ async def tokeninfo_wrapper(update, context):
         ]])
     )
 
+@debug_wrapper("analyze_wrapper")
 async def analyze_wrapper(update, context):
     """Wrapper for /analyze command"""
     await show_market_selection(update, context)
 
+@debug_wrapper("faq_wrapper")
 async def faq_wrapper(update, context):
     """Wrapper for /faq command"""
-    await show_faq(update, context)
+    # مستقیم پیام رو می‌فرستیم بدون callback_query
+    from config.texts import STATIC_TEXTS
+    faq_text = STATIC_TEXTS["faq_content"] if 'STATIC_TEXTS' in dir() else """
+❓ سوالات متداول
 
+1️⃣ ربات چگونه کار می‌کند؟
+2️⃣ چگونه اشتراک تهیه کنم؟
+3️⃣ آیا نیاز به دانش تخصصی دارم؟
+
+برای اطلاعات بیشتر با پشتیبانی تماس بگیرید.
+"""
+    
+    await update.message.reply_text(
+        faq_text,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
+        ]])
+    )
+
+@debug_wrapper("terms_wrapper")
 async def terms_wrapper(update, context):
     """Wrapper for /terms command"""
-    await terms_and_conditions(update, context)
+    # مستقیم پیام رو می‌فرستیم بدون callback_query
+    from config.texts import STATIC_TEXTS
+    terms_text = STATIC_TEXTS["terms_and_conditions"] if 'STATIC_TEXTS' in dir() else """
+📋 قوانین و مقررات استفاده از ربات
 
+با استفاده از این ربات، شما با قوانین زیر موافقت می‌کنید:
+• استفاده مسئولانه از خدمات
+• عدم اشتراک‌گذاری اکانت
+• رعایت قوانین معاملات
+
+نسخه: 1.0
+"""
+    
+    await update.message.reply_text(
+        terms_text,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
+        ]])
+    )
+
+@debug_wrapper("support_wrapper")
 async def support_wrapper(update, context):
     """Wrapper for /support command"""
-    await support_contact(update, context)
+    support_text = """
+👨‍💻 پشتیبانی ربات تحلیل چارت
+برای ارتباط با پشتیبان و ارسال TXID پرداخت، لطفاً با آیدی زیر در تلگرام تماس بگیرید:
+
+📱 @mmpouya
+
+ساعات پاسخگویی: 9 صبح تا 9 شب
+    """
+    
+    await update.message.reply_text(
+        support_text,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
+        ]])
+    )
 
 async def holders_wrapper(update, context):
     """Wrapper for /holders command"""
