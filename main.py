@@ -20,7 +20,7 @@ from handlers.handlers import (
 )
 
 from handlers.crypto_handlers import (
-    crypto_menu, 
+    crypto_menu, dex_menu, coin_menu,
     handle_dex_option, handle_coin_option,
     handle_trending_options, handle_treasury_options,
     process_user_input
