@@ -2,6 +2,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
 from config.settings import TELEGRAM_TOKEN
+from debug_logger import logger, debug_wrapper
 from config.constants import (
     MAIN_MENU, SELECTING_MARKET, SELECTING_TIMEFRAME,
     SELECTING_STRATEGY, WAITING_IMAGES,
@@ -28,8 +29,10 @@ from handlers.crypto_handlers import (
 from admin.commands import admin_activate, admin_help, admin_user_info, admin_stats, admin_broadcast
 
 # Wrapper functions for commands
+@debug_wrapper("dex_wrapper")
 async def dex_wrapper(update, context):
     """Wrapper for /dex command"""
+    logger.info("Creating MockCallbackQuery for dex_menu")
     # ایجاد mock callback_query برای سازگاری با تابع اصلی
     class MockCallbackQuery:
         def __init__(self, message):
@@ -37,16 +40,21 @@ async def dex_wrapper(update, context):
             self.data = "narmoon_dex"
         
         async def answer(self):
+            logger.info("MockCallbackQuery.answer() called")
             pass
         
         async def edit_message_text(self, *args, **kwargs):
+            logger.info(f"MockCallbackQuery.edit_message_text called with: {args[0][:50]}...")
             await self.message.reply_text(*args, **kwargs)
     
     update.callback_query = MockCallbackQuery(update.message)
+    logger.info("Calling dex_menu function")
     await dex_menu(update, context)
 
+@debug_wrapper("coin_wrapper")
 async def coin_wrapper(update, context):
     """Wrapper for /coin command"""
+    logger.info("Creating MockCallbackQuery for coin_menu")
     # ایجاد mock callback_query برای سازگاری با تابع اصلی
     class MockCallbackQuery:
         def __init__(self, message):
@@ -54,12 +62,15 @@ async def coin_wrapper(update, context):
             self.data = "narmoon_coin"
         
         async def answer(self):
+            logger.info("MockCallbackQuery.answer() called")
             pass
         
         async def edit_message_text(self, *args, **kwargs):
+            logger.info(f"MockCallbackQuery.edit_message_text called with: {args[0][:50]}...")
             await self.message.reply_text(*args, **kwargs)
     
     update.callback_query = MockCallbackQuery(update.message)
+    logger.info("Calling coin_menu function")
     await coin_menu(update, context)
 
 async def trending_wrapper(update, context):
@@ -118,11 +129,17 @@ async def holders_wrapper(update, context):
     )
 
 def main():
+    logger.info("🤖 Starting Narmoon Bot...")
+    
     # ایجاد پایگاه داده
+    logger.info("Initializing database...")
     init_db()
-
+    
     # ایجاد اپلیکیشن
+    logger.info("Creating application...")
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    
+    logger.info("Adding command handlers...")
 
     # Command handlers برای menu shortcuts - قبل از ConversationHandler
     app.add_handler(CommandHandler("analyze", analyze_wrapper))
