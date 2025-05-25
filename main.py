@@ -19,14 +19,15 @@ from handlers.handlers import (
     terms_and_conditions, subscription_plans, support_contact
 )
 
-from handlers.crypto_handlers import (
-    crypto_menu, dex_menu, coin_menu,
-    handle_dex_option, handle_coin_option,
-    handle_trending_options, handle_treasury_options,
-    process_user_input
-)
-
 from admin.commands import admin_activate, admin_help, admin_user_info, admin_stats, admin_broadcast
+
+from command_handlers import (
+    handle_start_command, handle_analyze_command, handle_crypto_command,
+    handle_dex_command, handle_coin_command, handle_trending_command,
+    handle_hotcoins_command, handle_tokeninfo_command, handle_holders_command,
+    handle_subscription_command, handle_terms_command, handle_faq_command,
+    handle_support_command
+)
 
 # Wrapper functions for commands
 @debug_wrapper("dex_wrapper")
@@ -215,18 +216,18 @@ def main():
     logger.info("Adding command handlers...")
 
     # Command handlers برای menu shortcuts - قبل از ConversationHandler
-    app.add_handler(CommandHandler("analyze", analyze_wrapper))
-    app.add_handler(CommandHandler("crypto", crypto_menu))
-    app.add_handler(CommandHandler("dex", dex_wrapper))
-    app.add_handler(CommandHandler("coin", coin_wrapper))
-    app.add_handler(CommandHandler("trending", trending_wrapper))
-    app.add_handler(CommandHandler("hotcoins", hotcoins_wrapper))
-    app.add_handler(CommandHandler("tokeninfo", tokeninfo_wrapper))
-    app.add_handler(CommandHandler("holders", holders_wrapper))
-    app.add_handler(CommandHandler("subscription", subscription_plans))
-    app.add_handler(CommandHandler("terms", terms_wrapper))
-    app.add_handler(CommandHandler("faq", faq_wrapper))
-    app.add_handler(CommandHandler("support", support_wrapper))
+    app.add_handler(CommandHandler("analyze", handle_analyze_command))
+    app.add_handler(CommandHandler("crypto", handle_crypto_command))
+    app.add_handler(CommandHandler("dex", handle_dex_command))
+    app.add_handler(CommandHandler("coin", handle_coin_command))
+    app.add_handler(CommandHandler("trending", handle_trending_command))
+    app.add_handler(CommandHandler("hotcoins", handle_hotcoins_command))
+    app.add_handler(CommandHandler("tokeninfo", handle_tokeninfo_command))
+    app.add_handler(CommandHandler("holders", handle_holders_command))
+    app.add_handler(CommandHandler("subscription", handle_subscription_command))
+    app.add_handler(CommandHandler("terms", handle_terms_command))
+    app.add_handler(CommandHandler("faq", handle_faq_command))
+    app.add_handler(CommandHandler("support", handle_support_command))
 
     # تعریف conversation handler اصلی
     conv_handler = ConversationHandler(
