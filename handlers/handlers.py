@@ -390,8 +390,10 @@ async def show_narmoon_products(update: Update, context: ContextTypes.DEFAULT_TY
     products_text = STATIC_TEXTS["narmoon_products"]
     
     products_buttons = [
-        [InlineKeyboardButton("🔄 نارموون دکس (رایگان)", url=NARMOON_DEX_LINK)],
-        [InlineKeyboardButton("💰 نارموون کوین (رایگان)", url=NARMOON_COIN_LINK)],
+        [
+            InlineKeyboardButton("🔄 نارموون دکس (رایگان)", url=NARMOON_DEX_LINK),
+            InlineKeyboardButton("💰 نارموون کوین (رایگان)", url=NARMOON_COIN_LINK)
+        ],
         [InlineKeyboardButton("🤖 نارموون TNT (ویژه Pro)", callback_data="subscription")],
         [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
     ]
@@ -503,10 +505,14 @@ async def subscription_plans(update: Update, context: ContextTypes.DEFAULT_TYPE)
 """
     
     subscription_buttons = [
-        [InlineKeyboardButton("🔄 نارموون دکس (رایگان)", url=NARMOON_DEX_LINK)],
-        [InlineKeyboardButton("💰 نارموون کوین (رایگان)", url=NARMOON_COIN_LINK)],
-        [InlineKeyboardButton("🤖 نارموون TNT ماهانه (۱۴،۹۹ دلار)", callback_data="sub_1month")],
-        [InlineKeyboardButton("🤖 نارموون TNT سه ماهه (۳۹،۹۹ دلار)", callback_data="sub_3month")],
+        [
+            InlineKeyboardButton("🔄 نارموون دکس (رایگان)", url=NARMOON_DEX_LINK),
+            InlineKeyboardButton("💰 نارموون کوین (رایگان)", url=NARMOON_COIN_LINK)
+        ],
+        [
+            InlineKeyboardButton("🤖 نارموون TNT ماهانه (۱۴،۹۹ دلار)", callback_data="sub_1month"),
+            InlineKeyboardButton("🤖 نارموون TNT سه ماهه (۳۹،۹۹ دلار)", callback_data="sub_3month")
+        ],
         [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
     ]
     
