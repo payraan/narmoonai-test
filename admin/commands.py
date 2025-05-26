@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from config.settings import ADMIN_ID
-from database.operations import activate_subscription, get_user_info, get_user_api_stats
+from database.operations import activate_subscription, get_user_info, get_user_api_stats, get_connection
 
 async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """فعال‌سازی اشتراک کاربر توسط ادمین (فرمت: /activate user_id duration plan_type)"""
@@ -133,15 +133,14 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"خطا در دریافت اطلاعات کاربر: {str(e)}")
 
 async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """نمایش آمار کلی ربات"""
+    """نمایش آمار کلی ربات - PostgreSQL Compatible"""
     if update.effective_user.id != ADMIN_ID:
         return
     
-    import sqlite3
     from datetime import datetime, timedelta
     
     try:
-        conn = sqlite3.connect('bot_database.db')
+        conn = get_connection()
         cursor = conn.cursor()
         
         # تعداد کل کاربران
@@ -149,13 +148,13 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total_users = cursor.fetchone()[0]
         
         # کاربران فعال (با اشتراک)
-        cursor.execute("SELECT COUNT(*) FROM users WHERE is_active = 1")
+        cursor.execute("SELECT COUNT(*) FROM users WHERE is_active = %s", (True,))
         active_users = cursor.fetchone()[0]
         
         # کاربران جدید امروز
         today = datetime.now().date()
         cursor.execute(
-            "SELECT COUNT(*) FROM users WHERE DATE(created_at) = ?",
+            "SELECT COUNT(*) FROM users WHERE DATE(created_at) = %s",
             (today,)
         )
         new_users_today = cursor.fetchone()[0]
@@ -163,7 +162,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # درآمد ماه جاری
         first_day = today.replace(day=1)
         cursor.execute(
-            "SELECT SUM(amount) FROM transactions WHERE status = 'completed' AND DATE(created_at) >= ?",
+            "SELECT SUM(amount) FROM transactions WHERE status = 'completed' AND DATE(created_at) >= %s",
             (first_day,)
         )
         monthly_revenue = cursor.fetchone()[0] or 0
@@ -187,7 +186,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"خطا در دریافت آمار: {str(e)}")
 
 async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ارسال پیام به همه کاربران"""
+    """ارسال پیام به همه کاربران - PostgreSQL Compatible"""
     if update.effective_user.id != ADMIN_ID:
         return
     
@@ -202,8 +201,7 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         message = ' '.join(context.args)
         
-        import sqlite3
-        conn = sqlite3.connect('bot_database.db')
+        conn = get_connection()
         cursor = conn.cursor()
         
         # دریافت لیست کاربران
@@ -216,6 +214,9 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.reply_text(f"شروع ارسال پیام به {len(users)} کاربر...")
         
+        # اضافه کردن delay برای جلوگیری از rate limiting
+        import asyncio
+        
         for user in users:
             try:
                 await context.bot.send_message(
@@ -223,8 +224,11 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text=f"📢 اطلاعیه:\n\n{message}"
                 )
                 success_count += 1
-            except:
+                # delay کوتاه برای جلوگیری از spam detection
+                await asyncio.sleep(0.05)  # 20 پیام در ثانیه
+            except Exception as e:
                 fail_count += 1
+                print(f"Failed to send message to {user[0]}: {e}")
         
         await update.message.reply_text(
             f"✅ ارسال پیام کامل شد!\n"
