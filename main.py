@@ -19,38 +19,57 @@ from handlers.handlers import (
     terms_and_conditions, subscription_plans, support_contact
 )
 
-from admin.commands import admin_activate, admin_help, admin_user_info, admin_stats, admin_broadcast
-
-from command_handlers import (
-    handle_start_command, handle_analyze_command, handle_crypto_command,
-    handle_dex_command, handle_coin_command, handle_trending_command,
-    handle_hotcoins_command, handle_tokeninfo_command, handle_holders_command,
-    handle_subscription_command, handle_terms_command, handle_faq_command,
-    handle_support_command
+from handlers.crypto_handlers import (
+    crypto_menu, dex_menu, coin_menu,
+    handle_dex_option, handle_coin_option,
+    handle_trending_options, handle_treasury_options,
+    process_user_input
 )
 
-# Wrapper functions for commands
-@debug_wrapper("dex_wrapper")
-async def dex_wrapper(update, context):
-    """Wrapper for /dex command"""
-    from handlers.crypto_handlers import get_dex_menu_keyboard
-    from database.operations import get_subscription_status
+from admin.commands import admin_activate, admin_help, admin_user_info, admin_stats, admin_broadcast
+
+# Simple wrapper functions that work with commands
+async def cmd_start(update, context):
+    """Command wrapper for /start"""
+    await start(update, context)
+
+async def cmd_analyze(update, context):
+    """Command wrapper for /analyze"""
+    # Send message directly without callback_query
+    market_buttons = [
+        [InlineKeyboardButton("🪙 رمزارزها", callback_data="market_crypto")],
+        [
+            InlineKeyboardButton("📈 فارکس", callback_data="market_forex"),
+            InlineKeyboardButton("💹 سهام", callback_data="market_stocks")
+        ],
+        [
+            InlineKeyboardButton("🏅 طلا", callback_data="market_gold"),
+            InlineKeyboardButton("🛢️ نفت", callback_data="market_oil")
+        ],
+        [InlineKeyboardButton("🔙 بازگشت", callback_data="main_menu")]
+    ]
     
-    user_id = update.effective_user.id
-    subscription_status = get_subscription_status(user_id)
+    await update.message.reply_text(
+        "📊 لطفاً بازار مورد نظر خود را انتخاب کنید:",
+        reply_markup=InlineKeyboardMarkup(market_buttons)
+    )
+
+async def cmd_crypto(update, context):
+    """Command wrapper for /crypto"""
+    keyboard = [
+        [InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")],
+        [InlineKeyboardButton("🪙 نارموون کوین", callback_data="narmoon_coin")],
+        [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
+    ]
     
-    if subscription_status == "inactive":
-        await update.message.reply_text(
-            "❌ شما اشتراک فعالی ندارید.\n"
-            "برای استفاده از این بخش، لطفاً اشتراک تهیه کنید.",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription_plans")
-            ]])
-        )
-        return
-    
-    text = "🔄 نارموون دکس - انتخاب کنید:"
-    keyboard = get_dex_menu_keyboard() if hasattr(crypto_handlers, 'get_dex_menu_keyboard') else [
+    await update.message.reply_text(
+        "🪙 منوی کریپتو - انتخاب کنید:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def cmd_dex(update, context):
+    """Command wrapper for /dex"""
+    keyboard = [
         [InlineKeyboardButton("📊 توکن ترندینگ", callback_data="dex_trending")],
         [InlineKeyboardButton("📈 توکن تاپ گینرز", callback_data="dex_top_gainers")],
         [InlineKeyboardButton("📉 توکن تاپ لوزرز", callback_data="dex_top_losers")],
@@ -61,29 +80,14 @@ async def dex_wrapper(update, context):
         [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
     ]
     
-    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text(
+        "🔄 نارموون دکس - انتخاب کنید:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
-@debug_wrapper("coin_wrapper")
-async def coin_wrapper(update, context):
-    """Wrapper for /coin command"""
-    from handlers.crypto_handlers import get_coin_menu_keyboard
-    from database.operations import get_subscription_status
-    
-    user_id = update.effective_user.id
-    subscription_status = get_subscription_status(user_id)
-    
-    if subscription_status == "inactive":
-        await update.message.reply_text(
-            "❌ شما اشتراک فعالی ندارید.\n"
-            "برای استفاده از این بخش، لطفاً اشتراک تهیه کنید.",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription_plans")
-            ]])
-        )
-        return
-    
-    text = "🪙 نارموون کوین - انتخاب کنید:"
-    keyboard = get_coin_menu_keyboard() if hasattr(crypto_handlers, 'get_coin_menu_keyboard') else [
+async def cmd_coin(update, context):
+    """Command wrapper for /coin"""
+    keyboard = [
         [InlineKeyboardButton("🔥 کوین های داغ", callback_data="coin_hot")],
         [InlineKeyboardButton("🚀 کوین های بازیگران", callback_data="coin_players")],
         [InlineKeyboardButton("💰 کوین های معاملاتی", callback_data="coin_trading")],
@@ -92,71 +96,60 @@ async def coin_wrapper(update, context):
         [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
     ]
     
-    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
-
-async def trending_wrapper(update, context):
-    """Wrapper for /trending command"""
-    # شبیه‌سازی callback query برای trending
-    class MockCallbackQuery:
-        def __init__(self, message):
-            self.data = 'trending_all_networks'
-            self.message = message
-        
-        async def answer(self):
-            pass
-        
-        async def edit_message_text(self, *args, **kwargs):
-            await self.message.reply_text(*args, **kwargs)
-    
-    update.callback_query = MockCallbackQuery(update.message)
-    await handle_trending_options(update, context)
-
-async def hotcoins_wrapper(update, context):
-    """Wrapper for /hotcoins command"""
-    await coin_menu(update, context)
-
-async def tokeninfo_wrapper(update, context):
-    """Wrapper for /tokeninfo command"""
     await update.message.reply_text(
-        "🔍 برای اطلاعات توکن، ابتدا به منوی دکس بروید:",
+        "🪙 نارموون کوین - انتخاب کنید:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def cmd_trending(update, context):
+    """Command wrapper for /trending"""
+    keyboard = [
+        [InlineKeyboardButton("🌐 همه شبکه‌ها", callback_data="trending_all_networks")],
+        [InlineKeyboardButton("🔷 اتریوم", callback_data="trending_ethereum")],
+        [InlineKeyboardButton("🟡 بایننس", callback_data="trending_bsc")],
+        [InlineKeyboardButton("🔙 بازگشت", callback_data="narmoon_dex")]
+    ]
+    
+    await update.message.reply_text(
+        "📊 توکن‌های ترندینگ - شبکه را انتخاب کنید:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def cmd_hotcoins(update, context):
+    """Command wrapper for /hotcoins"""
+    await cmd_coin(update, context)
+
+async def cmd_tokeninfo(update, context):
+    """Command wrapper for /tokeninfo"""
+    await update.message.reply_text(
+        "🔍 برای دریافت اطلاعات توکن:\n\n"
+        "1️⃣ به منوی دکس بروید\n"
+        "2️⃣ گزینه 'اطلاعات توکن' را انتخاب کنید\n"
+        "3️⃣ آدرس توکن را ارسال کنید",
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
         ]])
     )
 
-@debug_wrapper("analyze_wrapper")
-async def analyze_wrapper(update, context):
-    """Wrapper for /analyze command"""
-    await show_market_selection(update, context)
-
-@debug_wrapper("faq_wrapper")
-async def faq_wrapper(update, context):
-    """Wrapper for /faq command"""
-    # مستقیم پیام رو می‌فرستیم بدون callback_query
-    from config.texts import STATIC_TEXTS
-    faq_text = STATIC_TEXTS["faq_content"] if 'STATIC_TEXTS' in dir() else """
-❓ سوالات متداول
-
-1️⃣ ربات چگونه کار می‌کند؟
-2️⃣ چگونه اشتراک تهیه کنم؟
-3️⃣ آیا نیاز به دانش تخصصی دارم؟
-
-برای اطلاعات بیشتر با پشتیبانی تماس بگیرید.
-"""
-    
+async def cmd_holders(update, context):
+    """Command wrapper for /holders"""
     await update.message.reply_text(
-        faq_text,
+        "👥 برای بررسی هولدرها:\n\n"
+        "1️⃣ به منوی دکس بروید\n"
+        "2️⃣ گزینه 'تحلیل هولدرها' را انتخاب کنید\n"
+        "3️⃣ آدرس توکن را ارسال کنید",
         reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
+            InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
         ]])
     )
 
-@debug_wrapper("terms_wrapper")
-async def terms_wrapper(update, context):
-    """Wrapper for /terms command"""
-    # مستقیم پیام رو می‌فرستیم بدون callback_query
-    from config.texts import STATIC_TEXTS
-    terms_text = STATIC_TEXTS["terms_and_conditions"] if 'STATIC_TEXTS' in dir() else """
+async def cmd_subscription(update, context):
+    """Command wrapper for /subscription"""
+    await subscription_plans(update, context)
+
+async def cmd_terms(update, context):
+    """Command wrapper for /terms"""
+    terms_text = """
 📋 قوانین و مقررات استفاده از ربات
 
 با استفاده از این ربات، شما با قوانین زیر موافقت می‌کنید:
@@ -174,31 +167,44 @@ async def terms_wrapper(update, context):
         ]])
     )
 
-@debug_wrapper("support_wrapper")
-async def support_wrapper(update, context):
-    """Wrapper for /support command"""
-    support_text = """
-👨‍💻 پشتیبانی ربات تحلیل چارت
-برای ارتباط با پشتیبان و ارسال TXID پرداخت، لطفاً با آیدی زیر در تلگرام تماس بگیرید:
+async def cmd_faq(update, context):
+    """Command wrapper for /faq"""
+    faq_text = """
+❓ سوالات متداول
 
-📱 @mmpouya
+1️⃣ ربات چگونه کار می‌کند؟
+پاسخ: ربات با استفاده از هوش مصنوعی تصاویر چارت را تحلیل می‌کند.
 
-ساعات پاسخگویی: 9 صبح تا 9 شب
-    """
+2️⃣ آیا نیاز به دانش تخصصی دارم؟
+پاسخ: خیر، ربات به زبان ساده توضیح می‌دهد.
+
+3️⃣ چگونه اشتراک تهیه کنم؟
+پاسخ: از منوی اشتراک یا تماس با پشتیبانی.
+"""
     
     await update.message.reply_text(
-        support_text,
+        faq_text,
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
         ]])
     )
 
-async def holders_wrapper(update, context):
-    """Wrapper for /holders command"""
+async def cmd_support(update, context):
+    """Command wrapper for /support"""
+    support_text = """
+📞 ارتباط با پشتیبانی
+
+🆔 آیدی پشتیبان: @mmpouya
+⏰ ساعات پاسخگویی: 9 صبح تا 9 شب
+
+شماره کاربری شما: {}
+""".format(update.effective_user.id)
+    
     await update.message.reply_text(
-        "👥 برای بررسی هولدرها، ابتدا به منوی دکس بروید:",
+        support_text,
         reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
+            InlineKeyboardButton("💬 پیام به پشتیبان", url="https://t.me/mmpouya"),
+            InlineKeyboardButton("🔙 منوی اصلی", callback_data="main_menu")
         ]])
     )
 
@@ -214,20 +220,21 @@ def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     
     logger.info("Adding command handlers...")
-
-    # Command handlers برای menu shortcuts - قبل از ConversationHandler
-    app.add_handler(CommandHandler("analyze", handle_analyze_command))
-    app.add_handler(CommandHandler("crypto", handle_crypto_command))
-    app.add_handler(CommandHandler("dex", handle_dex_command))
-    app.add_handler(CommandHandler("coin", handle_coin_command))
-    app.add_handler(CommandHandler("trending", handle_trending_command))
-    app.add_handler(CommandHandler("hotcoins", handle_hotcoins_command))
-    app.add_handler(CommandHandler("tokeninfo", handle_tokeninfo_command))
-    app.add_handler(CommandHandler("holders", handle_holders_command))
-    app.add_handler(CommandHandler("subscription", handle_subscription_command))
-    app.add_handler(CommandHandler("terms", handle_terms_command))
-    app.add_handler(CommandHandler("faq", handle_faq_command))
-    app.add_handler(CommandHandler("support", handle_support_command))
+    
+    # Command handlers - before ConversationHandler
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("analyze", cmd_analyze))
+    app.add_handler(CommandHandler("crypto", cmd_crypto))
+    app.add_handler(CommandHandler("dex", cmd_dex))
+    app.add_handler(CommandHandler("coin", cmd_coin))
+    app.add_handler(CommandHandler("trending", cmd_trending))
+    app.add_handler(CommandHandler("hotcoins", cmd_hotcoins))
+    app.add_handler(CommandHandler("tokeninfo", cmd_tokeninfo))
+    app.add_handler(CommandHandler("holders", cmd_holders))
+    app.add_handler(CommandHandler("subscription", cmd_subscription))
+    app.add_handler(CommandHandler("terms", cmd_terms))
+    app.add_handler(CommandHandler("faq", cmd_faq))
+    app.add_handler(CommandHandler("support", cmd_support))
 
     # تعریف conversation handler اصلی
     conv_handler = ConversationHandler(
