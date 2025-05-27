@@ -128,8 +128,8 @@ def main():
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$")
             ],
             SELECTING_STRATEGY: [
-                CallbackQueryHandler(handle_strategy_selection, pattern=r'^(strategy_.*|ignore)
-                ),
+                # 🔥 FIX: اصلاح خط 131 - string pattern کامل شده
+                CallbackQueryHandler(handle_strategy_selection, pattern=r'^(strategy_.*|ignore)$'),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$"),
                 CallbackQueryHandler(show_timeframes, pattern="^back_to_timeframes$")
