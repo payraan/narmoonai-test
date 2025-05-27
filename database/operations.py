@@ -230,19 +230,10 @@ def init_db():
             )
         ''')
     
-    # مقادیر پیش‌فرض برای تنظیمات
-    cursor.execute('''
-        INSERT OR IGNORE INTO referral_settings (setting_key, setting_value) 
-        VALUES ('min_withdrawal_amount', '20.00')
-    ''') if not is_postgres else cursor.execute('''
-        INSERT INTO referral_settings (setting_key, setting_value) 
-        VALUES ('min_withdrawal_amount', '20.00')
-        ON CONFLICT (setting_key) DO NOTHING
-    ''')
-    
+     # حذف بخش index ها و مقادیر پیش‌فرض فعلاً تا migration کامل شود
     conn.commit()
     conn.close()
-    print("✅ Database initialized successfully with Referral System!")
+    print("✅ Database initialized successfully!")
 
 def check_subscription(user_id):
     """بررسی وضعیت اشتراک کاربر - PostgreSQL Compatible"""
