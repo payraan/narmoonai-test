@@ -111,14 +111,41 @@ def init_db():
             )
         ''')
         
-        # ایجاد ایندکس‌ها برای بهتر شدن عملکرد
-        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_users_subscription ON users(subscription_end, is_active)''')
-        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code)''')
-        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_api_requests_date ON api_requests(user_id, request_date)''')
-        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id)''')
-        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_referrals_referred ON referrals(referred_id)''')
-        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_commissions_referrer ON commissions(referrer_id, status)''')
-        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_commissions_status ON commissions(status)''')
+        # ایجاد ایندکس‌ها برای بهتر شدن عملکرد - Safe Migration
+        try:
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_users_subscription ON users(subscription_end, is_active)''')
+        except Exception as e:
+            print(f"Index users_subscription already exists or error: {e}")
+        
+        try:
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code)''')
+        except Exception as e:
+            print(f"Index users_referral_code skipped (column may not exist yet): {e}")
+        
+        try:
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_api_requests_date ON api_requests(user_id, request_date)''')
+        except Exception as e:
+            print(f"Index api_requests_date already exists or error: {e}")
+        
+        try:
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id)''')
+        except Exception as e:
+            print(f"Index referrals_referrer skipped (table may not exist yet): {e}")
+        
+        try:
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_referrals_referred ON referrals(referred_id)''')
+        except Exception as e:
+            print(f"Index referrals_referred skipped (table may not exist yet): {e}")
+        
+        try:
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_commissions_referrer ON commissions(referrer_id, status)''')
+        except Exception as e:
+            print(f"Index commissions_referrer skipped (table may not exist yet): {e}")
+        
+        try:
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_commissions_status ON commissions(status)''')
+        except Exception as e:
+            print(f"Index commissions_status skipped (table may not exist yet): {e}")
         
     else:
         # SQLite syntax (development)
