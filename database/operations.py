@@ -264,7 +264,7 @@ def check_subscription(user_id):
     return end_date >= today
 
 def register_user(user_id, username):
-    """ثبت کاربر جدید در دیتابیس - PostgreSQL Compatible"""
+    """ثبت کاربر جدید در دیتابیس - PostgreSQL Compatible (Safe Mode)"""
     conn = get_connection()
     cursor = conn.cursor()
     
@@ -272,10 +272,12 @@ def register_user(user_id, username):
     is_postgres = hasattr(conn, 'server_version')
     
     if is_postgres:
+        # حالت امن: فقط user_id و username
         cursor.execute("""
             INSERT INTO users (user_id, username) 
             VALUES (%s, %s) 
-            ON CONFLICT (user_id) DO NOTHING
+            ON CONFLICT (user_id) DO UPDATE SET
+            username = EXCLUDED.username
         """, (user_id, username))
     else:
         cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
@@ -287,6 +289,7 @@ def register_user(user_id, username):
     
     conn.commit()
     conn.close()
+    print(f"✅ User {user_id} registered safely")
 
 def activate_subscription(user_id, duration_months, sub_type):
     """فعال‌سازی اشتراک کاربر - PostgreSQL Compatible"""
