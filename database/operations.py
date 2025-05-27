@@ -3,6 +3,8 @@ import psycopg2
 import psycopg2.extras
 import datetime
 import os
+import secrets
+import string
 
 def get_connection():
     """اتصال هوشمند به دیتابیس"""
@@ -35,12 +37,19 @@ def init_db():
                 subscription_type TEXT,
                 is_active BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                referral_code TEXT UNIQUE,
+                referral_code TEXT,
                 custom_commission_rate DECIMAL(5,2),
                 total_earned DECIMAL(10,2) DEFAULT 0.00,
                 total_paid DECIMAL(10,2) DEFAULT 0.00
             )
         ''')
+        
+        # اضافه کردن unique constraint برای referral_code
+        try:
+            cursor.execute('ALTER TABLE users ADD CONSTRAINT users_referral_code_unique UNIQUE (referral_code)')
+            conn.commit()
+        except Exception:
+            conn.rollback()  # constraint already exists
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS transactions (
@@ -230,7 +239,21 @@ def init_db():
             )
         ''')
     
-     # حذف بخش index ها و مقادیر پیش‌فرض فعلاً تا migration کامل شود
+    # اضافه کردن default settings
+    try:
+        cursor.execute('''
+            INSERT INTO referral_settings (setting_key, setting_value) 
+            VALUES ('min_withdrawal_amount', '20.00')
+            ON CONFLICT (setting_key) DO NOTHING
+        ''' if is_postgres else '''
+            INSERT OR IGNORE INTO referral_settings (setting_key, setting_value) 
+            VALUES ('min_withdrawal_amount', '20.00')
+        ''')
+        conn.commit()
+    except Exception as e:
+        print(f"Default settings insert error: {e}")
+        conn.rollback()
+    
     conn.commit()
     conn.close()
     print("✅ Database initialized successfully!")
@@ -263,30 +286,52 @@ def check_subscription(user_id):
     conn.close()
     return end_date >= today
 
+def generate_referral_code(user_id):
+    """تولید کد رفرال منحصر به فرد"""
+    # ترکیب user_id با کد تصادفی
+    random_part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+    return f"REF{user_id}{random_part}"
+
 def register_user(user_id, username):
-    """ثبت کاربر جدید در دیتابیس - PostgreSQL Compatible"""
+    """ثبت کاربر جدید در دیتابیس - PostgreSQL Compatible + Referral"""
     conn = get_connection()
     cursor = conn.cursor()
     
+    # تولید کد رفرال
+    referral_code = generate_referral_code(user_id)
+    
+    # PostgreSQL: ON CONFLICT, SQLite: INSERT OR IGNORE
     is_postgres = hasattr(conn, 'server_version')
     
     if is_postgres:
         cursor.execute("""
-            INSERT INTO users (user_id, username) 
-            VALUES (%s, %s) 
+            INSERT INTO users (user_id, username, referral_code) 
+            VALUES (%s, %s, %s) 
             ON CONFLICT (user_id) DO UPDATE SET
-            username = EXCLUDED.username
-        """, (user_id, username))
+            username = EXCLUDED.username,
+            referral_code = COALESCE(users.referral_code, EXCLUDED.referral_code)
+        """, (user_id, username, referral_code))
     else:
-        cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
-        if not cursor.fetchone():
+        # برای SQLite: ابتدا چک کنیم کاربر وجود دارد یا نه
+        cursor.execute("SELECT user_id, referral_code FROM users WHERE user_id = ?", (user_id,))
+        existing_user = cursor.fetchone()
+        
+        if not existing_user:
             cursor.execute(
-                "INSERT INTO users (user_id, username) VALUES (?, ?)",
-                (user_id, username)
+                "INSERT INTO users (user_id, username, referral_code) VALUES (?, ?, ?)",
+                (user_id, username, referral_code)
             )
+        else:
+            # اگر کاربر وجود دارد اما کد رفرال ندارد، اضافه کن
+            if not existing_user[1]:  # referral_code خالی است
+                cursor.execute(
+                    "UPDATE users SET referral_code = ?, username = ? WHERE user_id = ?",
+                    (referral_code, username, user_id)
+                )
     
     conn.commit()
     conn.close()
+    print(f"✅ User {user_id} registered with referral code: {referral_code}")
 
 def activate_subscription(user_id, duration_months, sub_type):
     """فعال‌سازی اشتراک کاربر - PostgreSQL Compatible"""
@@ -406,7 +451,7 @@ def get_user_api_stats(user_id):
         "total": total_count
     }
 
-# تابع جدید برای migration
+# متدهای جدید برای migration
 def migrate_from_sqlite_to_postgresql():
     """انتقال داده‌ها از SQLite به PostgreSQL - یکبار مصرف"""
     print("🔄 Starting migration from SQLite to PostgreSQL...")
@@ -481,59 +526,6 @@ def migrate_from_sqlite_to_postgresql():
     finally:
         sqlite_conn.close()
         pg_conn.close()
-
-
-# === REFERRAL SYSTEM FUNCTIONS ===
-
-import secrets
-import string
-
-def generate_referral_code(user_id):
-    """تولید کد رفرال منحصر به فرد"""
-    # ترکیب user_id با کد تصادفی
-    random_part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-    return f"REF{user_id}{random_part}"
-
-def register_user(user_id, username):
-    """ثبت کاربر جدید در دیتابیس - PostgreSQL Compatible + Referral"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # تولید کد رفرال
-    referral_code = generate_referral_code(user_id)
-    
-    # PostgreSQL: ON CONFLICT, SQLite: INSERT OR IGNORE
-    is_postgres = hasattr(conn, 'server_version')
-    
-    if is_postgres:
-        cursor.execute("""
-            INSERT INTO users (user_id, username, referral_code) 
-            VALUES (%s, %s, %s) 
-            ON CONFLICT (user_id) DO UPDATE SET
-            username = EXCLUDED.username,
-            referral_code = COALESCE(users.referral_code, EXCLUDED.referral_code)
-        """, (user_id, username, referral_code))
-    else:
-        # برای SQLite: ابتدا چک کنیم کاربر وجود دارد یا نه
-        cursor.execute("SELECT user_id, referral_code FROM users WHERE user_id = ?", (user_id,))
-        existing_user = cursor.fetchone()
-        
-        if not existing_user:
-            cursor.execute(
-                "INSERT INTO users (user_id, username, referral_code) VALUES (?, ?, ?)",
-                (user_id, username, referral_code)
-            )
-        else:
-            # اگر کاربر وجود دارد اما کد رفرال ندارد، اضافه کن
-            if not existing_user[1]:  # referral_code خالی است
-                cursor.execute(
-                    "UPDATE users SET referral_code = ?, username = ? WHERE user_id = ?",
-                    (referral_code, username, user_id)
-                )
-    
-    conn.commit()
-    conn.close()
-    print(f"✅ User {user_id} registered with referral code: {referral_code}")
 
 def create_referral_relationship(referrer_code, referred_user_id):
     """ایجاد رابطه رفرال بین دو کاربر"""
