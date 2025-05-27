@@ -18,7 +18,7 @@ def get_connection():
         return sqlite3.connect('bot_database.db')
 
 def init_db():
-    """ایجاد پایگاه داده و جداول مورد نیاز - PostgreSQL Compatible"""
+    """ایجاد پایگاه داده و جداول مورد نیاز - PostgreSQL Compatible + Referral System"""
     conn = get_connection()
     cursor = conn.cursor()
     
@@ -34,7 +34,11 @@ def init_db():
                 subscription_end DATE,
                 subscription_type TEXT,
                 is_active BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                referral_code TEXT UNIQUE,
+                custom_commission_rate DECIMAL(5,2),
+                total_earned DECIMAL(10,2) DEFAULT 0.00,
+                total_paid DECIMAL(10,2) DEFAULT 0.00
             )
         ''')
         
@@ -63,16 +67,58 @@ def init_db():
             )
         ''')
         
-        # ایجاد ایندکس‌ها برای بهتر شدن عملکرد
+        # جدول جدید: referrals - ردیابی روابط دعوت
         cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_users_subscription 
-            ON users(subscription_end, is_active)
+            CREATE TABLE IF NOT EXISTS referrals (
+                id SERIAL PRIMARY KEY,
+                referrer_id BIGINT NOT NULL,
+                referred_id BIGINT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'pending',
+                FOREIGN KEY (referrer_id) REFERENCES users (user_id),
+                FOREIGN KEY (referred_id) REFERENCES users (user_id),
+                UNIQUE(referrer_id, referred_id)
+            )
         ''')
         
+        # جدول جدید: commissions - مدیریت کمیسیون‌ها
         cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_api_requests_date 
-            ON api_requests(user_id, request_date)
+            CREATE TABLE IF NOT EXISTS commissions (
+                id SERIAL PRIMARY KEY,
+                referrer_id BIGINT NOT NULL,
+                referred_id BIGINT NOT NULL,
+                transaction_id INTEGER,
+                plan_type TEXT NOT NULL,
+                commission_amount DECIMAL(10,2) NOT NULL,
+                bonus_amount DECIMAL(10,2) DEFAULT 0.00,
+                total_amount DECIMAL(10,2) NOT NULL,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                paid_at TIMESTAMP,
+                FOREIGN KEY (referrer_id) REFERENCES users (user_id),
+                FOREIGN KEY (referred_id) REFERENCES users (user_id),
+                FOREIGN KEY (transaction_id) REFERENCES transactions (id)
+            )
         ''')
+        
+        # جدول جدید: referral_settings - تنظیمات سیستم
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS referral_settings (
+                id SERIAL PRIMARY KEY,
+                setting_key TEXT UNIQUE NOT NULL,
+                setting_value TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # ایجاد ایندکس‌ها برای بهتر شدن عملکرد
+        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_users_subscription ON users(subscription_end, is_active)''')
+        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code)''')
+        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_api_requests_date ON api_requests(user_id, request_date)''')
+        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id)''')
+        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_referrals_referred ON referrals(referred_id)''')
+        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_commissions_referrer ON commissions(referrer_id, status)''')
+        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_commissions_status ON commissions(status)''')
         
     else:
         # SQLite syntax (development)
@@ -83,7 +129,11 @@ def init_db():
                 subscription_end DATE,
                 subscription_type TEXT,
                 is_active BOOLEAN DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                referral_code TEXT UNIQUE,
+                custom_commission_rate REAL,
+                total_earned REAL DEFAULT 0.00,
+                total_paid REAL DEFAULT 0.00
             )
         ''')
         
@@ -111,10 +161,61 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users (user_id)
             )
         ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS referrals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                referrer_id INTEGER NOT NULL,
+                referred_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'pending',
+                FOREIGN KEY (referrer_id) REFERENCES users (user_id),
+                FOREIGN KEY (referred_id) REFERENCES users (user_id),
+                UNIQUE(referrer_id, referred_id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS commissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                referrer_id INTEGER NOT NULL,
+                referred_id INTEGER NOT NULL,
+                transaction_id INTEGER,
+                plan_type TEXT NOT NULL,
+                commission_amount REAL NOT NULL,
+                bonus_amount REAL DEFAULT 0.00,
+                total_amount REAL NOT NULL,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                paid_at TIMESTAMP,
+                FOREIGN KEY (referrer_id) REFERENCES users (user_id),
+                FOREIGN KEY (referred_id) REFERENCES users (user_id),
+                FOREIGN KEY (transaction_id) REFERENCES transactions (id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS referral_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                setting_key TEXT UNIQUE NOT NULL,
+                setting_value TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+    
+    # مقادیر پیش‌فرض برای تنظیمات
+    cursor.execute('''
+        INSERT OR IGNORE INTO referral_settings (setting_key, setting_value) 
+        VALUES ('min_withdrawal_amount', '20.00')
+    ''') if not is_postgres else cursor.execute('''
+        INSERT INTO referral_settings (setting_key, setting_value) 
+        VALUES ('min_withdrawal_amount', '20.00')
+        ON CONFLICT (setting_key) DO NOTHING
+    ''')
     
     conn.commit()
     conn.close()
-    print("✅ Database initialized successfully!")
+    print("✅ Database initialized successfully with Referral System!")
 
 def check_subscription(user_id):
     """بررسی وضعیت اشتراک کاربر - PostgreSQL Compatible"""
@@ -362,3 +463,442 @@ def migrate_from_sqlite_to_postgresql():
     finally:
         sqlite_conn.close()
         pg_conn.close()
+
+
+# === REFERRAL SYSTEM FUNCTIONS ===
+
+import secrets
+import string
+
+def generate_referral_code(user_id):
+    """تولید کد رفرال منحصر به فرد"""
+    # ترکیب user_id با کد تصادفی
+    random_part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+    return f"REF{user_id}{random_part}"
+
+def register_user(user_id, username):
+    """ثبت کاربر جدید در دیتابیس - PostgreSQL Compatible + Referral"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # تولید کد رفرال
+    referral_code = generate_referral_code(user_id)
+    
+    # PostgreSQL: ON CONFLICT, SQLite: INSERT OR IGNORE
+    is_postgres = hasattr(conn, 'server_version')
+    
+    if is_postgres:
+        cursor.execute("""
+            INSERT INTO users (user_id, username, referral_code) 
+            VALUES (%s, %s, %s) 
+            ON CONFLICT (user_id) DO UPDATE SET
+            username = EXCLUDED.username,
+            referral_code = COALESCE(users.referral_code, EXCLUDED.referral_code)
+        """, (user_id, username, referral_code))
+    else:
+        # برای SQLite: ابتدا چک کنیم کاربر وجود دارد یا نه
+        cursor.execute("SELECT user_id, referral_code FROM users WHERE user_id = ?", (user_id,))
+        existing_user = cursor.fetchone()
+        
+        if not existing_user:
+            cursor.execute(
+                "INSERT INTO users (user_id, username, referral_code) VALUES (?, ?, ?)",
+                (user_id, username, referral_code)
+            )
+        else:
+            # اگر کاربر وجود دارد اما کد رفرال ندارد، اضافه کن
+            if not existing_user[1]:  # referral_code خالی است
+                cursor.execute(
+                    "UPDATE users SET referral_code = ?, username = ? WHERE user_id = ?",
+                    (referral_code, username, user_id)
+                )
+    
+    conn.commit()
+    conn.close()
+    print(f"✅ User {user_id} registered with referral code: {referral_code}")
+
+def create_referral_relationship(referrer_code, referred_user_id):
+    """ایجاد رابطه رفرال بین دو کاربر"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        # پیدا کردن referrer از روی کد
+        if is_postgres:
+            cursor.execute("SELECT user_id FROM users WHERE referral_code = %s", (referrer_code,))
+        else:
+            cursor.execute("SELECT user_id FROM users WHERE referral_code = ?", (referrer_code,))
+        
+        referrer = cursor.fetchone()
+        
+        if not referrer:
+            conn.close()
+            return {"success": False, "error": "کد رفرال نامعتبر"}
+        
+        referrer_id = referrer[0]
+        
+        # جلوگیری از خود-رفرال
+        if referrer_id == referred_user_id:
+            conn.close()
+            return {"success": False, "error": "نمی‌توانید خودتان را دعوت کنید"}
+        
+        # بررسی وجود رابطه قبلی
+        if is_postgres:
+            cursor.execute(
+                "SELECT id FROM referrals WHERE referrer_id = %s AND referred_id = %s",
+                (referrer_id, referred_user_id)
+            )
+        else:
+            cursor.execute(
+                "SELECT id FROM referrals WHERE referrer_id = ? AND referred_id = ?",
+                (referrer_id, referred_user_id)
+            )
+        
+        existing = cursor.fetchone()
+        
+        if existing:
+            conn.close()
+            return {"success": False, "error": "رابطه رفرال قبلاً ثبت شده"}
+        
+        # ایجاد رابطه جدید
+        if is_postgres:
+            cursor.execute("""
+                INSERT INTO referrals (referrer_id, referred_id, status) 
+                VALUES (%s, %s, 'pending')
+            """, (referrer_id, referred_user_id))
+        else:
+            cursor.execute("""
+                INSERT INTO referrals (referrer_id, referred_id, status) 
+                VALUES (?, ?, 'pending')
+            """, (referrer_id, referred_user_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            "success": True, 
+            "referrer_id": referrer_id,
+            "message": f"رابطه رفرال بین {referrer_id} و {referred_user_id} ثبت شد"
+        }
+        
+    except Exception as e:
+        conn.close()
+        return {"success": False, "error": f"خطا در ثبت رفرال: {str(e)}"}
+
+def calculate_commission(referrer_id, referred_user_id, plan_type, transaction_id):
+    """محاسبه و ثبت کمیسیون برای رفرال موفق"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        # دریافت تنظیمات کمیسیون کاربر
+        if is_postgres:
+            cursor.execute("SELECT custom_commission_rate FROM users WHERE user_id = %s", (referrer_id,))
+        else:
+            cursor.execute("SELECT custom_commission_rate FROM users WHERE user_id = ?", (referrer_id,))
+        
+        user_data = cursor.fetchone()
+        custom_rate = user_data[0] if user_data and user_data[0] else None
+        
+        # محاسبه کمیسیون پایه
+        if plan_type == "ماهانه":
+            base_commission = 7.00
+        elif plan_type == "سه_ماهه":
+            base_commission = 16.00
+        else:
+            base_commission = 0.00
+        
+        # اعمال نرخ سفارشی اگر وجود دارد
+        if custom_rate:
+            if plan_type == "ماهانه":
+                base_commission = 25.00 * (custom_rate / 100)
+            elif plan_type == "سه_ماهه":
+                base_commission = 65.00 * (custom_rate / 100)
+        
+        # محاسبه بونوس حجمی
+        if is_postgres:
+            cursor.execute("SELECT COUNT(*) FROM commissions WHERE referrer_id = %s AND status = 'pending'", (referrer_id,))
+        else:
+            cursor.execute("SELECT COUNT(*) FROM commissions WHERE referrer_id = ? AND status = 'pending'", (referrer_id,))
+        
+        successful_referrals = cursor.fetchone()[0] + 1
+        
+        bonus_amount = 0.00
+        if successful_referrals >= 10:
+            bonus_amount = 5.00
+        elif successful_referrals >= 5:
+            bonus_amount = 2.00
+        
+        total_amount = base_commission + bonus_amount
+        
+        # ثبت کمیسیون
+        if is_postgres:
+            cursor.execute("""
+                INSERT INTO commissions 
+                (referrer_id, referred_id, transaction_id, plan_type, 
+                 commission_amount, bonus_amount, total_amount, status) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending')
+            """, (referrer_id, referred_user_id, transaction_id, plan_type,
+                  base_commission, bonus_amount, total_amount))
+        else:
+            cursor.execute("""
+                INSERT INTO commissions 
+                (referrer_id, referred_id, transaction_id, plan_type, 
+                 commission_amount, bonus_amount, total_amount, status) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+            """, (referrer_id, referred_user_id, transaction_id, plan_type,
+                  base_commission, bonus_amount, total_amount))
+        
+        # به‌روزرسانی وضعیت رفرال
+        if is_postgres:
+            cursor.execute("UPDATE referrals SET status = 'completed' WHERE referrer_id = %s AND referred_id = %s", (referrer_id, referred_user_id))
+            cursor.execute("UPDATE users SET total_earned = total_earned + %s WHERE user_id = %s", (total_amount, referrer_id))
+        else:
+            cursor.execute("UPDATE referrals SET status = 'completed' WHERE referrer_id = ? AND referred_id = ?", (referrer_id, referred_user_id))
+            cursor.execute("UPDATE users SET total_earned = total_earned + ? WHERE user_id = ?", (total_amount, referrer_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            "success": True,
+            "commission_amount": base_commission,
+            "bonus_amount": bonus_amount,
+            "total_amount": total_amount,
+            "successful_referrals": successful_referrals
+        }
+        
+    except Exception as e:
+        conn.close()
+        return {"success": False, "error": f"خطا در محاسبه کمیسیون: {str(e)}"}
+
+def get_referral_stats(user_id):
+    """دریافت آمار کامل رفرال کاربر"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        # اطلاعات پایه کاربر
+        if is_postgres:
+            cursor.execute("""
+                SELECT referral_code, total_earned, total_paid, custom_commission_rate
+                FROM users WHERE user_id = %s
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT referral_code, total_earned, total_paid, custom_commission_rate
+                FROM users WHERE user_id = ?
+            """, (user_id,))
+        
+        user_data = cursor.fetchone()
+        if not user_data:
+            conn.close()
+            return {"success": False, "error": "کاربر یافت نشد"}
+        
+        referral_code, total_earned, total_paid, custom_rate = user_data
+        
+        # لیست خریداران موفق
+        if is_postgres:
+            cursor.execute("""
+                SELECT u.username, u.user_id, c.plan_type, c.total_amount, c.created_at, c.status
+                FROM commissions c
+                JOIN users u ON c.referred_id = u.user_id
+                WHERE c.referrer_id = %s
+                ORDER BY c.created_at DESC
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT u.username, u.user_id, c.plan_type, c.total_amount, c.created_at, c.status
+                FROM commissions c
+                JOIN users u ON c.referred_id = u.user_id
+                WHERE c.referrer_id = ?
+                ORDER BY c.created_at DESC
+            """, (user_id,))
+        
+        successful_buyers = cursor.fetchall()
+        
+        # آمار کمیسیون‌ها
+        if is_postgres:
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_referrals,
+                    SUM(CASE WHEN status = 'pending' THEN total_amount ELSE 0 END) as pending_amount,
+                    SUM(CASE WHEN status = 'paid' THEN total_amount ELSE 0 END) as paid_amount
+                FROM commissions WHERE referrer_id = %s
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_referrals,
+                    SUM(CASE WHEN status = 'pending' THEN total_amount ELSE 0 END) as pending_amount,
+                    SUM(CASE WHEN status = 'paid' THEN total_amount ELSE 0 END) as paid_amount
+                FROM commissions WHERE referrer_id = ?
+            """, (user_id,))
+        
+        commission_stats = cursor.fetchone()
+        
+        conn.close()
+        
+        return {
+            "success": True,
+            "referral_code": referral_code,
+            "total_earned": float(total_earned or 0),
+            "total_paid": float(total_paid or 0),
+            "pending_amount": float(commission_stats[1] or 0),
+            "successful_referrals": commission_stats[0] or 0,
+            "custom_commission_rate": custom_rate,
+            "buyers": [
+                {
+                    "username": buyer[0] or f"User_{buyer[1]}",
+                    "user_id": buyer[1],
+                    "plan_type": buyer[2],
+                    "amount": float(buyer[3]),
+                    "date": str(buyer[4]),
+                    "status": buyer[5]
+                }
+                for buyer in successful_buyers
+            ]
+        }
+        
+    except Exception as e:
+        conn.close()
+        return {"success": False, "error": f"خطا در دریافت آمار: {str(e)}"}
+
+def get_admin_referral_stats():
+    """آمار کامل رفرال برای ادمین"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # لیست همه referrer ها با آمار
+        cursor.execute("""
+            SELECT 
+                u.user_id,
+                u.username,
+                u.referral_code,
+                u.custom_commission_rate,
+                u.total_earned,
+                u.total_paid,
+                COUNT(c.id) as total_referrals,
+                SUM(CASE WHEN c.status = 'pending' THEN c.total_amount ELSE 0 END) as pending_amount
+            FROM users u
+            LEFT JOIN commissions c ON u.user_id = c.referrer_id
+            WHERE u.total_earned > 0 OR c.id IS NOT NULL
+            GROUP BY u.user_id, u.username, u.referral_code, u.custom_commission_rate, u.total_earned, u.total_paid
+            ORDER BY u.total_earned DESC
+        """)
+        
+        referrers = cursor.fetchall()
+        
+        # آمار کلی سیستم
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT referrer_id) as total_referrers,
+                COUNT(*) as total_commissions,
+                SUM(total_amount) as total_commissions_amount,
+                SUM(CASE WHEN status = 'pending' THEN total_amount ELSE 0 END) as pending_payments,
+                SUM(CASE WHEN status = 'paid' THEN total_amount ELSE 0 END) as paid_amount
+            FROM commissions
+        """)
+        
+        system_stats = cursor.fetchone()
+        
+        conn.close()
+        
+        return {
+            "success": True,
+            "system_stats": {
+                "total_referrers": system_stats[0] or 0,
+                "total_commissions": system_stats[1] or 0,
+                "total_commissions_amount": float(system_stats[2] or 0),
+                "pending_payments": float(system_stats[3] or 0),
+                "paid_amount": float(system_stats[4] or 0)
+            },
+            "referrers": [
+                {
+                    "user_id": ref[0],
+                    "username": ref[1] or f"User_{ref[0]}",
+                    "referral_code": ref[2],
+                    "custom_rate": ref[3],
+                    "total_earned": float(ref[4] or 0),
+                    "total_paid": float(ref[5] or 0),
+                    "total_referrals": ref[6] or 0,
+                    "pending_amount": float(ref[7] or 0)
+                }
+                for ref in referrers
+            ]
+        }
+        
+    except Exception as e:
+        conn.close()
+        return {"success": False, "error": f"خطا در دریافت آمار ادمین: {str(e)}"}
+
+def mark_commission_as_paid(referrer_id, amount):
+    """تصویه حساب کمیسیون کاربر"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # علامت‌گذاری کمیسیون‌های pending به عنوان paid
+        cursor.execute("""
+            UPDATE commissions 
+            SET status = 'paid', paid_at = CURRENT_TIMESTAMP 
+            WHERE referrer_id = %s AND status = 'pending'
+        """, (referrer_id,))
+        
+        # به‌روزرسانی total_paid کاربر
+        cursor.execute("""
+            UPDATE users 
+            SET total_paid = total_paid + %s 
+            WHERE user_id = %s
+        """, (amount, referrer_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return {"success": True, "message": f"کمیسیون {amount}$ برای کاربر {referrer_id} تصویه شد"}
+        
+    except Exception as e:
+        conn.close()
+        return {"success": False, "error": f"خطا در تصویه حساب: {str(e)}"}
+
+def get_referral_settings():
+    """دریافت تنظیمات سیستم رفرال"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT setting_key, setting_value FROM referral_settings")
+    settings = cursor.fetchall()
+    
+    conn.close()
+    
+    return {setting[0]: setting[1] for setting in settings}
+
+def update_referral_setting(key, value):
+    """به‌روزرسانی تنظیمات سیستم رفرال"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    is_postgres = hasattr(conn, 'server_version')
+    
+    if is_postgres:
+        cursor.execute("""
+            INSERT INTO referral_settings (setting_key, setting_value) 
+            VALUES (%s, %s)
+            ON CONFLICT (setting_key) DO UPDATE SET 
+            setting_value = EXCLUDED.setting_value,
+            updated_at = CURRENT_TIMESTAMP
+        """, (key, value))
+    else:
+        cursor.execute("""
+            INSERT OR REPLACE INTO referral_settings (setting_key, setting_value) 
+            VALUES (?, ?)
+        """, (key, value))
+    
+    conn.commit()
+    conn.close()
+    
+    return {"success": True, "message": f"تنظیم {key} به {value} تغییر یافت"}

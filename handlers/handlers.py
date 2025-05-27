@@ -29,6 +29,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     main_menu_buttons = [
         [InlineKeyboardButton("📊 تحلیل نمودارها با هوش مصنوعی TNT", callback_data="analyze_charts")],
         [InlineKeyboardButton("🪙 رمزارز", callback_data="crypto")],
+        [InlineKeyboardButton("💰 سیستم رفرال", callback_data="referral_panel")],
         [
         InlineKeyboardButton("📚 دفترچه راهنما", callback_data="guide"),
         InlineKeyboardButton("🛒 محصولات نارموون", callback_data="narmoon_products")
@@ -100,6 +101,8 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # این import رو اینجا انجام می‌دیم تا circular import نداشته باشیم
         from handlers.crypto_handlers import crypto_menu
         return await crypto_menu(update, context)
+    elif query.data == "referral_panel":
+        return await show_referral_panel(update, context)
     elif query.data == "analyze_charts":
         # بررسی وضعیت اشتراک کاربر
         user_id = update.effective_user.id
@@ -614,3 +617,91 @@ https://t.me/Sultan_immortal
 async def handle_back_to_timeframes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """بازگشت به انتخاب تایم‌فریم"""
     return await show_timeframes(update, context)
+
+async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش پنل رفرال کاربر"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = update.effective_user.id
+    
+    # Import referral functions
+    from database.operations import get_referral_stats
+    
+    try:
+        # دریافت آمار رفرال کاربر
+        stats = get_referral_stats(user_id)
+        
+        if not stats.get('success'):
+            await query.edit_message_text(
+                "❌ خطا در دریافت اطلاعات رفرال.\n"
+                "لطفاً دوباره تلاش کنید.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
+                ]])
+            )
+            return MAIN_MENU
+        
+        # ساخت پیام پنل رفرال
+        referral_code = stats['referral_code']
+        referral_link = f"https://t.me/YourBotUsername?start={referral_code}"
+        
+        message = f"""💰 **پنل رفرال شما**
+
+🔗 **لینک دعوت:**
+`{referral_link}`
+
+📊 **آمار خریداران:**
+✅ خریداران موفق: **{stats['successful_referrals']} نفر**
+
+💵 **وضعیت مالی:**
+💰 کل درآمد: **${stats['total_earned']:.2f}**
+💳 قابل برداشت: **${stats['pending_amount']:.2f}**
+🏦 پرداخت شده: **${stats['total_paid']:.2f}**
+
+"""
+        
+        # اضافه کردن لیست خریداران
+        if stats['buyers']:
+            message += "👥 **جزئیات خریداران:**\n"
+            for i, buyer in enumerate(stats['buyers'][:5], 1):  # فقط 5 تای اول
+                plan_emoji = "📅" if buyer['plan_type'] == "ماهانه" else "📆"
+                status_emoji = "💰" if buyer['status'] == 'pending' else "✅"
+                message += f"{i}. {status_emoji} **{buyer['username']}**\n"
+                message += f"   {plan_emoji} {buyer['plan_type']} - ${buyer['amount']:.2f}\n"
+            
+            if len(stats['buyers']) > 5:
+                message += f"... و {len(stats['buyers']) - 5} نفر دیگر\n"
+        
+        message += f"""
+📞 **برای دریافت پول:**
+حداقل مبلغ برداشت: **$20**
+پیام خصوصی به @Sultan_immortal
++ شماره کیف پول خود را ارسال کنید
+
+🔄 آپدیت: همین الان"""
+        
+        # دکمه‌های پنل
+        keyboard = [
+            [InlineKeyboardButton("📋 کپی لینک", callback_data=f"copy_link_{referral_code}")],
+            [InlineKeyboardButton("📊 جزئیات کامل", callback_data="referral_details")],
+            [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
+        ]
+        
+        await query.edit_message_text(
+            message,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return MAIN_MENU
+        
+    except Exception as e:
+        print(f"Error in show_referral_panel: {e}")
+        await query.edit_message_text(
+            "❌ خطا در نمایش پنل رفرال.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 بازگشت", callback_data="main_menu")
+            ]])
+        )
+        return MAIN_MENU
