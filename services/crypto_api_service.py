@@ -3,7 +3,7 @@ import requests
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from config.settings import API_KEYS, BASE_URLS
-from utils.helpers import cache, format_large_number
+from utils.helpers import cache, cache_result, format_large_number
 
 class CryptoAPIService:
     def __init__(self):
@@ -27,13 +27,9 @@ class CryptoAPIService:
         except json.JSONDecodeError:
             return {"error": "JSONError", "message": "پاسخ نامعتبر"}
     
+    @cache_result("market_overview", ttl=300)  # 5 دقیقه کش
     async def get_market_overview(self) -> Dict[str, Any]:
-        """دریافت نمای کلی بازار"""
-        # بررسی کش
-        cached_data = cache.get("market_overview")
-        if cached_data:
-            return cached_data
-        
+        """دریافت نمای کلی بازار با Redis Cache"""
         try:
             # استفاده از CoinGecko Global API
             url = f"{self.external_api_base}/api/coingecko/global"
@@ -47,15 +43,14 @@ class CryptoAPIService:
                     "total_market_cap": data.get("total_market_cap", {}).get("usd", 0),
                     "total_volume": data.get("total_volume", {}).get("usd", 0),
                     "market_cap_change_24h": data.get("market_cap_change_percentage_24h_usd", 0),
-                    "active_cryptocurrencies": data.get("active_cryptocurrencies", 0)
+                    "active_cryptocurrencies": data.get("active_cryptocurrencies", 0),
+                    "timestamp": datetime.now().isoformat()
                 }
                 
                 # دریافت قیمت کوین‌های اصلی
                 coins_data = await self._get_main_coins_prices()
                 result["main_coins"] = coins_data
                 
-                # ذخیره در کش
-                cache.set("market_overview", result)
                 return result
             
             return {
@@ -70,25 +65,22 @@ class CryptoAPIService:
                 "message": "خطا در دریافت اطلاعات بازار"
             }
     
+    @cache_result("main_coins_prices", ttl=120)  # 2 دقیقه کش
     async def _get_main_coins_prices(self) -> Dict[str, Any]:
-        """دریافت قیمت کوین‌های اصلی"""
+        """دریافت قیمت کوین‌های اصلی با کش"""
         try:
             url = f"{self.external_api_base}/api/cryptocompare/price"
-            params = {
-                "fsym": "BTC",
-                "tsyms": "USD"
-            }
-            
             coins = {}
+            
             # دریافت قیمت هر کوین جداگانه
             for symbol in ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE"]:
-                params["fsym"] = symbol
+                params = {"fsym": symbol, "tsyms": "USD"}
                 response = self._make_request(url, params=params)
                 
                 if "error" not in response and "USD" in response:
                     coins[symbol] = {
                         "price": response["USD"],
-                        "change_24h": 0  # فعلاً صفر، بعداً از API دیگه می‌گیریم
+                        "change_24h": 0  # از API دیگری دریافت می‌شود
                     }
             
             return coins
@@ -97,13 +89,9 @@ class CryptoAPIService:
             print(f"Error getting main coins prices: {e}")
             return {}
     
+    @cache_result("trending_dex_tokens", ttl=180)  # 3 دقیقه کش
     async def get_trending_dex_tokens(self, limit: int = 20) -> List[Dict]:
-        """دریافت توکن‌های ترند DEX"""
-        cache_key = f"trending_dex_{limit}"
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return cached_data
-        
+        """دریافت توکن‌های ترند DEX با Redis Cache"""
         trending_tokens = []
         
         try:
@@ -125,7 +113,8 @@ class CryptoAPIService:
                         "price": float(attributes.get("base_token_price_usd", 0)),
                         "price_change_24h": float(attributes.get("price_change_percentage", {}).get("h24", 0)),
                         "volume_24h": float(attributes.get("volume_usd", {}).get("h24", 0)),
-                        "liquidity": float(attributes.get("reserve_in_usd", 0))
+                        "liquidity": float(attributes.get("reserve_in_usd", 0)),
+                        "cached_at": datetime.now().isoformat()
                     })
             
             # اگر GeckoTerminal نتیجه نداد، از DexScreener استفاده کن
@@ -145,12 +134,10 @@ class CryptoAPIService:
                             "price": float(pair.get("priceUsd", 0)),
                             "price_change_24h": float(pair.get("priceChange", {}).get("h24", 0)),
                             "volume_24h": float(pair.get("volume", {}).get("h24", 0)),
-                            "liquidity": float(pair.get("liquidity", {}).get("usd", 0))
+                            "liquidity": float(pair.get("liquidity", {}).get("usd", 0)),
+                            "source": "DexScreener",
+                            "cached_at": datetime.now().isoformat()
                         })
-            
-            # ذخیره در کش
-            if trending_tokens:
-                cache.set(cache_key, trending_tokens)
             
             return trending_tokens
             
@@ -158,13 +145,9 @@ class CryptoAPIService:
             print(f"Error getting trending tokens: {e}")
             return []
     
+    @cache_result("top_coins", ttl=240)  # 4 دقیقه کش
     async def get_top_coins(self, limit: int = 10) -> List[Dict]:
-        """دریافت کوین‌های برتر"""
-        cache_key = f"top_coins_{limit}"
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return cached_data
-        
+        """دریافت کوین‌های برتر با Redis Cache"""
         try:
             # استفاده از CoinGecko search trending
             url = f"{self.external_api_base}/api/coingecko/search/trending"
@@ -195,15 +178,12 @@ class CryptoAPIService:
                         "name": item.get("name", "Unknown"),
                         "symbol": item.get("symbol", "???").upper(),
                         "price": price,
-                        "price_change_24h": item.get("price_btc", 0),  # تغییر تقریبی
+                        "price_change_24h": item.get("price_btc", 0),
                         "market_cap": item.get("market_cap_rank", 0),
-                        "volume_24h": 0,  # در trending API موجود نیست
-                        "image": item.get("thumb", "")
+                        "volume_24h": 0,
+                        "image": item.get("thumb", ""),
+                        "cached_at": datetime.now().isoformat()
                     })
-            
-            # ذخیره در کش
-            if top_coins:
-                cache.set(cache_key, top_coins)
             
             return top_coins
             
@@ -211,15 +191,17 @@ class CryptoAPIService:
             print(f"Error getting top coins: {e}")
             return []
     
+    @cache_result("token_analysis", ttl=600)  # 10 دقیقه کش برای تحلیل توکن
     async def analyze_token(self, token_address: str, chain: str = "solana") -> Dict:
-        """تحلیل جامع یک توکن"""
+        """تحلیل جامع یک توکن با Redis Cache"""
         result = {
             "basic_info": {},
             "price_data": {},
             "holder_analysis": {},
             "liquidity_info": {},
             "risk_analysis": {},
-            "success": False
+            "success": False,
+            "cached_at": datetime.now().isoformat()
         }
         
         try:
@@ -266,8 +248,9 @@ class CryptoAPIService:
             return result
     
     # متدهای جدید برای endpoint های دیگر
+    @cache_result("new_pairs", ttl=150)  # 2.5 دقیقه کش
     async def get_new_pairs(self, limit: int = 20) -> List[Dict]:
-        """دریافت جفت‌های جدید"""
+        """دریافت جفت‌های جدید با Redis Cache"""
         try:
             url = f"{self.external_api_base}/api/dexscreener/search"
             params = {"q": "solana"}
@@ -287,7 +270,8 @@ class CryptoAPIService:
                         "pair": f"{pair.get('baseToken', {}).get('symbol', '???')}/{pair.get('quoteToken', {}).get('symbol', 'USDT')}",
                         "created_at": pair.get("pairCreatedAt", ""),
                         "dex": pair.get("dexId", "Unknown"),
-                        "liquidity": float(pair.get("liquidity", {}).get("usd", 0))
+                        "liquidity": float(pair.get("liquidity", {}).get("usd", 0)),
+                        "cached_at": datetime.now().isoformat()
                     })
             
             return new_pairs
@@ -296,8 +280,9 @@ class CryptoAPIService:
             print(f"Error getting new pairs: {e}")
             return []
     
+    @cache_result("top_gainers", ttl=120)  # 2 دقیقه کش
     async def get_top_gainers(self, limit: int = 20) -> List[Dict]:
-        """دریافت بیشترین رشدها"""
+        """دریافت بیشترین رشدها با Redis Cache"""
         try:
             # ابتدا توکن‌های ترند رو می‌گیریم
             trending = await self.get_trending_dex_tokens(50)
@@ -307,11 +292,53 @@ class CryptoAPIService:
                                key=lambda x: x.get("price_change_24h", 0), 
                                reverse=True)[:limit]
             
+            # اضافه کردن timestamp برای tracking
+            for gainer in top_gainers:
+                gainer["cached_at"] = datetime.now().isoformat()
+                gainer["category"] = "top_gainer"
+            
             return top_gainers
             
         except Exception as e:
             print(f"Error getting top gainers: {e}")
             return []
+    
+    # Cache management methods
+    def invalidate_market_cache(self):
+        """پاک کردن کش‌های مربوط به بازار"""
+        from utils.helpers import invalidate_cache_pattern
+        
+        patterns = [
+            "market_overview:*",
+            "main_coins_prices:*", 
+            "trending_dex_tokens:*",
+            "top_coins:*"
+        ]
+        
+        total_deleted = 0
+        for pattern in patterns:
+            total_deleted += invalidate_cache_pattern(pattern)
+        
+        print(f"🗑️ Invalidated {total_deleted} market cache entries")
+        return total_deleted
+    
+    def invalidate_token_cache(self, token_address: str = None):
+        """پاک کردن کش‌های مربوط به توکن خاص یا همه"""
+        from utils.helpers import invalidate_cache_pattern
+        
+        if token_address:
+            pattern = f"token_analysis:*{token_address}*"
+        else:
+            pattern = "token_analysis:*"
+        
+        deleted_count = invalidate_cache_pattern(pattern)
+        print(f"🗑️ Invalidated {deleted_count} token cache entries")
+        return deleted_count
+    
+    def get_cache_health(self):
+        """بررسی سلامت کش‌ها"""
+        from utils.helpers import get_cache_stats
+        return get_cache_stats()
 
 # نمونه global از سرویس
 crypto_service = CryptoAPIService()

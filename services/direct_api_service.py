@@ -1,7 +1,9 @@
 import requests
 import asyncio
 from typing import Dict, Any, List
+from datetime import datetime
 from config.settings import API_KEYS, BASE_URLS
+from utils.helpers import cache, cache_result
 
 class DirectAPIService:
     def __init__(self):
@@ -26,73 +28,104 @@ class DirectAPIService:
             print(f"Error in API request to {url}: {e}")
             return {"error": True, "message": str(e)}
     
-    # === CoinGecko APIs ===
+    # === CoinGecko APIs with Cache ===
+    @cache_result("coingecko_search", ttl=1800)  # 30 دقیقه کش
     def coingecko_search(self, query: str) -> Dict[str, Any]:
-        """جستجوی عمومی CoinGecko"""
+        """جستجوی عمومی CoinGecko با کش"""
         headers = {"accept": "application/json"}
         if self.api_keys["COINGECKO"] != "FREE":
             headers["x-cg-demo-api-key"] = self.api_keys["COINGECKO"]
         
         params = {"query": query}
-        return self._make_request(
+        result = self._make_request(
             self.base_urls["COINGECKO"], 
             "/search", 
             headers, 
             params
         )
+        
+        # اضافه کردن timestamp
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
+        
+        return result
     
+    @cache_result("coingecko_trending", ttl=900)  # 15 دقیقه کش
     def coingecko_trending(self) -> Dict[str, Any]:
-        """کوین‌های ترند CoinGecko"""
+        """کوین‌های ترند CoinGecko با کش"""
         headers = {"accept": "application/json"}
         if self.api_keys["COINGECKO"] != "FREE":
             headers["x-cg-demo-api-key"] = self.api_keys["COINGECKO"]
         
-        return self._make_request(
+        result = self._make_request(
             self.base_urls["COINGECKO"], 
             "/search/trending", 
             headers
         )
+        
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
+        
+        return result
     
+    @cache_result("coingecko_global", ttl=300)  # 5 دقیقه کش
     def coingecko_global(self) -> Dict[str, Any]:
-        """آمار جهانی کریپتو"""
+        """آمار جهانی کریپتو با کش"""
         headers = {"accept": "application/json"}
         if self.api_keys["COINGECKO"] != "FREE":
             headers["x-cg-demo-api-key"] = self.api_keys["COINGECKO"]
         
-        return self._make_request(
+        result = self._make_request(
             self.base_urls["COINGECKO"], 
             "/global", 
             headers
         )
+        
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
+        
+        return result
     
+    @cache_result("coingecko_defi", ttl=600)  # 10 دقیقه کش
     def coingecko_defi(self) -> Dict[str, Any]:
-        """آمار DeFi"""
+        """آمار DeFi با کش"""
         headers = {"accept": "application/json"}
         if self.api_keys["COINGECKO"] != "FREE":
             headers["x-cg-demo-api-key"] = self.api_keys["COINGECKO"]
         
-        return self._make_request(
+        result = self._make_request(
             self.base_urls["COINGECKO"], 
             "/global/decentralized_finance_defi", 
             headers
         )
+        
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
+        
+        return result
     
+    @cache_result("coingecko_companies_treasury", ttl=3600)  # 1 ساعت کش
     def coingecko_companies_treasury(self, coin_id: str) -> Dict[str, Any]:
-        """ذخایر شرکت‌ها"""
+        """ذخایر شرکت‌ها با کش"""
         headers = {"accept": "application/json"}
         if self.api_keys["COINGECKO"] != "FREE":
             headers["x-cg-demo-api-key"] = self.api_keys["COINGECKO"]
         
-        return self._make_request(
+        result = self._make_request(
             self.base_urls["COINGECKO"], 
             f"/companies/public_treasury/{coin_id}", 
             headers
         )
+        
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
+        
+        return result
     
-    # === GeckoTerminal APIs ===
-   
+    # === GeckoTerminal APIs with Cache ===
+    @cache_result("geckoterminal_token_info", ttl=600)  # 10 دقیقه کش
     def geckoterminal_token_info(self, network: str, address: str) -> Dict[str, Any]:
-        """اطلاعات کامل توکن از GeckoTerminal - بهبود یافته"""
+        """اطلاعات کامل توکن از GeckoTerminal با کش"""
         headers = {"Accept": "application/json;version=20230302"}
         
         try:
@@ -115,6 +148,9 @@ class DirectAPIService:
                 # اضافه کردن pools data به token info
                 if "data" in token_info and "data" in pools_info and pools_info["data"]:
                     token_info["pools_data"] = pools_info["data"][0].get("attributes", {})
+                
+                # اضافه کردن timestamp
+                token_info["cached_at"] = datetime.now().isoformat()
             
             return token_info
             
@@ -122,8 +158,9 @@ class DirectAPIService:
             print(f"Error in geckoterminal_token_info: {e}")
             return {"error": str(e)}
     
+    @cache_result("geckoterminal_trending_all", ttl=180)  # 3 دقیقه کش
     def geckoterminal_trending_all(self) -> Dict[str, Any]:
-        """توکن‌های ترند همه شبکه‌ها"""
+        """توکن‌های ترند همه شبکه‌ها با کش"""
         headers = {"Accept": "application/json;version=20230302"}
         result = self._make_request(
             self.base_urls["GECKOTERMINAL"], 
@@ -133,14 +170,19 @@ class DirectAPIService:
         
         # اصلاح ساختار داده در صورت نیاز
         if isinstance(result, list):
-            return {"data": {"pools": result}}
+            result = {"data": {"pools": result}}
         elif "data" not in result and "pools" in result:
-            return {"data": result}
+            result = {"data": result}
+        
+        # اضافه کردن timestamp
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
         
         return result
     
+    @cache_result("geckoterminal_trending_network", ttl=180)  # 3 دقیقه کش
     def geckoterminal_trending_network(self, network: str) -> Dict[str, Any]:
-        """توکن‌های ترند شبکه خاص"""
+        """توکن‌های ترند شبکه خاص با کش"""
         headers = {"Accept": "application/json;version=20230302"}
         result = self._make_request(
             self.base_urls["GECKOTERMINAL"], 
@@ -152,16 +194,21 @@ class DirectAPIService:
         if isinstance(result, dict) and "data" in result:
             # اگر data یک لیست است، آن را در فرمت مناسب قرار بده
             if isinstance(result["data"], list):
-                return {"data": {"pools": result["data"]}}
+                result = {"data": {"pools": result["data"]}}
             elif isinstance(result["data"], dict):
-                return result
+                pass  # ساختار درست است
         elif isinstance(result, dict) and "pools" in result:
-            return {"data": result}
+            result = {"data": result}
+        
+        # اضافه کردن timestamp
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
             
         return result
     
+    @cache_result("geckoterminal_recently_updated", ttl=240)  # 4 دقیقه کش
     def geckoterminal_recently_updated(self) -> Dict[str, Any]:
-        """توکن‌های به‌روزرسانی شده"""
+        """توکن‌های به‌روزرسانی شده با کش"""
         headers = {"Accept": "application/json;version=20230302"}
         result = self._make_request(
             self.base_urls["GECKOTERMINAL"], 
@@ -171,23 +218,35 @@ class DirectAPIService:
         
         # اصلاح ساختار داده
         if isinstance(result, list):
-            return {"data": {"tokens": result}}
+            result = {"data": {"tokens": result}}
         elif "data" not in result and "tokens" in result:
-            return {"data": result}
+            result = {"data": result}
+        
+        # اضافه کردن timestamp
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
             
         return result
      
+    @cache_result("geckoterminal_token_pools", ttl=300)  # 5 دقیقه کش
     def geckoterminal_token_pools(self, network: str, address: str) -> Dict[str, Any]:
-        """دریافت pools مربوط به توکن"""
+        """دریافت pools مربوط به توکن با کش"""
         headers = {"Accept": "application/json;version=20230302"}
-        return self._make_request(
+        result = self._make_request(
             self.base_urls["GECKOTERMINAL"], 
             f"/networks/{network}/tokens/{address}/pools", 
             headers
-    )
-    # === DexScreener APIs ===
+        )
+        
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
+        
+        return result
+    
+    # === DexScreener APIs with Cache ===
+    @cache_result("dexscreener_boosted_tokens", ttl=600)  # 10 دقیقه کش
     def dexscreener_boosted_tokens(self) -> List[Dict[str, Any]]:
-        """توکن‌های تقویت‌شده"""
+        """توکن‌های تقویت‌شده با کش"""
         headers = {"Accept": "*/*"}
         result = self._make_request(
             self.base_urls["DEXSCREENER"], 
@@ -197,45 +256,66 @@ class DirectAPIService:
         
         # اگر نتیجه لیست بود، آن را برگردان
         if isinstance(result, list):
+            # اضافه کردن timestamp به هر آیتم
+            for item in result:
+                if isinstance(item, dict):
+                    item["cached_at"] = datetime.now().isoformat()
             return result
         elif isinstance(result, dict) and result.get("error"):
             return []
         elif isinstance(result, dict) and "data" in result:
-            return result["data"] if isinstance(result["data"], list) else []
+            data = result["data"] if isinstance(result["data"], list) else []
+            for item in data:
+                if isinstance(item, dict):
+                    item["cached_at"] = datetime.now().isoformat()
+            return data
         
         # اگر هیچ‌کدام نبود، لیست خالی برگردان
         return []
     
-    # === Moralis APIs ===
+    # === Moralis APIs with Cache ===
+    @cache_result("moralis_trending_tokens", ttl=300)  # 5 دقیقه کش
     def moralis_trending_tokens(self, limit: int = 10) -> Dict[str, Any]:
-        """توکن‌های ترند Moralis"""
+        """توکن‌های ترند Moralis با کش"""
         headers = {
             "accept": "application/json",
             "X-API-Key": self.api_keys["MORALIS"]
         }
         params = {"limit": limit}
-        return self._make_request(
+        result = self._make_request(
             self.base_urls["MORALIS_INDEX"], 
             "/tokens/trending", 
             headers, 
             params
         )
+        
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
+        
+        return result
     
+    @cache_result("moralis_snipers", ttl=900)  # 15 دقیقه کش
     def moralis_snipers(self, pair_address: str) -> Dict[str, Any]:
-        """اسنایپرهای توکن"""
+        """اسنایپرهای توکن با کش"""
         headers = {
             "accept": "application/json",
             "X-API-Key": self.api_keys["MORALIS"]
         }
-        return self._make_request(
+        result = self._make_request(
             self.base_urls["MORALIS_SOLANA"], 
             f"/token/mainnet/pairs/{pair_address}/snipers", 
             headers
         )
+        
+        if not result.get("error"):
+            result["cached_at"] = datetime.now().isoformat()
+        
+        return result
     
-    # === Combined Methods ===
+    # === Combined Methods with Enhanced Caching ===
+    @cache_result("combined_solana_trending", ttl=180)  # 3 دقیقه کش
     async def get_combined_solana_trending(self) -> Dict[str, Any]:
-        """ترکیب توکن‌های ترند سولانا از GeckoTerminal و Moralis - اصلاح شده"""
+        """ترکیب توکن‌های ترند سولانا با Redis Cache"""
         try:
             # دریافت داده‌ها از GeckoTerminal
             gecko_data = self.geckoterminal_trending_network("solana")
@@ -293,7 +373,8 @@ class DirectAPIService:
                                 "fdv_usd": attributes.get("fdv_usd", "0"),
                                 "pool_created_at": attributes.get("pool_created_at", ""),
                                 "transactions_24h": attributes.get("transactions", {}).get("h24", {}),
-                                "market_cap": attributes.get("fdv_usd", "0")
+                                "market_cap": attributes.get("fdv_usd", "0"),
+                                "cached_at": datetime.now().isoformat()
                             }
                             
                             # استخراج ایمن volume
@@ -331,13 +412,15 @@ class DirectAPIService:
                         "address": f"sample_{i+1}",
                         "price_usd": f"0.00{i+1}",
                         "volume_24h": 10000 * (i+1),
-                        "price_change_24h": (i+1) * 5.2
+                        "price_change_24h": (i+1) * 5.2,
+                        "cached_at": datetime.now().isoformat()
                     })
             
             return {
                 "success": True,
                 "combined_tokens": combined_tokens,
-                "total_count": len(combined_tokens)
+                "total_count": len(combined_tokens),
+                "cached_at": datetime.now().isoformat()
             }
             
         except Exception as e:
@@ -356,14 +439,41 @@ class DirectAPIService:
                     "address": f"fallback_{i+1}",
                     "price_usd": f"0.00{i+1}",
                     "volume_24h": 5000 * (i+1),
-                    "price_change_24h": (i+1) * 3.1
+                    "price_change_24h": (i+1) * 3.1,
+                    "cached_at": datetime.now().isoformat()
                 })
             
             return {
                 "success": True,
                 "combined_tokens": fallback_tokens,
-                "total_count": len(fallback_tokens)
+                "total_count": len(fallback_tokens),
+                "cached_at": datetime.now().isoformat()
             }
+    
+    # Cache management methods
+    def invalidate_all_cache(self):
+        """پاک کردن تمام کش‌های API"""
+        from utils.helpers import invalidate_cache_pattern
+        
+        patterns = [
+            "coingecko_*",
+            "geckoterminal_*", 
+            "dexscreener_*",
+            "moralis_*",
+            "combined_*"
+        ]
+        
+        total_deleted = 0
+        for pattern in patterns:
+            total_deleted += invalidate_cache_pattern(pattern)
+        
+        print(f"🗑️ Invalidated {total_deleted} API cache entries")
+        return total_deleted
+    
+    def get_cache_status(self):
+        """دریافت وضعیت کش‌های API"""
+        from utils.helpers import get_cache_stats
+        return get_cache_stats()
 
 # نمونه global از سرویس
 direct_api_service = DirectAPIService()
