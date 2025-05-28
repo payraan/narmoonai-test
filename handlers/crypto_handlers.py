@@ -13,8 +13,6 @@ from config.constants import (
 )
 from database.operations import check_subscription, check_user_api_limit, log_api_request
 import asyncio
-from database.operations import check_subscription, check_user_api_limit, log_api_request
-import asyncio
 from utils.helpers import format_token_price
 
 async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):

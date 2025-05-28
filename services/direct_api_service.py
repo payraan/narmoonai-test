@@ -24,6 +24,12 @@ class DirectAPIService:
             
             return result
             
+        except requests.exceptions.Timeout:
+            print(f"Timeout in API request to {url}")
+            return {"error": True, "message": "درخواست طولانی شد، دوباره تلاش کنید"}
+        except requests.exceptions.ConnectionError:
+            print(f"Connection error in API request to {url}")
+            return {"error": True, "message": "خطا در اتصال به شبکه"}
         except requests.exceptions.RequestException as e:
             print(f"Error in API request to {url}: {e}")
             return {"error": True, "message": str(e)}
