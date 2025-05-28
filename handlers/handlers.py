@@ -802,3 +802,21 @@ async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_
         parse_mode='Markdown'
     )
     return MAIN_MENU
+
+async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Debug handler برای تمام callback ها"""
+    query = update.callback_query
+    await query.answer()
+    
+    callback_data = query.data
+    print(f"🔍 DEBUG: Received callback: '{callback_data}'")
+    
+    if callback_data.startswith("copy_link_"):
+        print("🎯 DEBUG: Copy link detected - calling handler")
+        return await handle_referral_copy_link(update, context)
+    elif callback_data == "referral_details":
+        print("🎯 DEBUG: Details detected - calling handler") 
+        return await handle_referral_details(update, context)
+    
+    print(f"❌ DEBUG: Unhandled callback: {callback_data}")
+    return MAIN_MENU

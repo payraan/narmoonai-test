@@ -23,7 +23,8 @@ from handlers.handlers import (
     handle_strategy_selection, receive_images, cancel,
     show_narmoon_products, show_ai_features, show_faq, usage_guide,
     terms_and_conditions, subscription_plans, support_contact,
-    show_referral_panel, handle_referral_copy_link, handle_referral_details
+    show_referral_panel, handle_referral_copy_link, handle_referral_details,
+    debug_callback_handler
 )
 
 from handlers.crypto_handlers import (
@@ -104,6 +105,7 @@ def main():
         entry_points=[CommandHandler("start", start)],
         states={
             MAIN_MENU: [
+                CallbackQueryHandler(debug_callback_handler),  # اضافه کن اینجا
                 CallbackQueryHandler(handle_main_menu),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
