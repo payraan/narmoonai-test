@@ -66,13 +66,11 @@ async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 message,
                 reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
             )
         else:
             await update.message.reply_text(
                 message,
                 reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
             )
 
     except Exception as e:
@@ -88,13 +86,11 @@ async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 error_message,
                 reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
             )
         else:
             await update.message.reply_text(
                 error_message,
                 reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
             )
 
     return CRYPTO_MENU
@@ -137,7 +133,6 @@ async def dex_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "تحلیل تخصصی توکن‌های DEX سولانا\n\n"
         "لطفاً یکی از گزینه‌ها را انتخاب کنید:",
         reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='Markdown'
     )
 
     return DEX_MENU
@@ -176,7 +171,6 @@ async def coin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "تحلیل تخصصی کوین‌های معتبر و بازارهای متمرکز\n\n"
         "لطفاً یکی از گزینه‌ها را انتخاب کنید:",
         reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='Markdown'
     )
 
     return COIN_MENU
@@ -220,7 +214,6 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "لطفاً آدرس قرارداد توکن سولانا را ارسال کنید:\n\n"
                 "مثال: `7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr`\n\n"
                 "برای لغو: /cancel",
-                parse_mode='Markdown'
             )
             return DEX_SUBMENU
 
@@ -236,7 +229,6 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "🔥 **توکن های داغ**\n\n"
                 "لطفاً یکی از گزینه‌ها را انتخاب کنید:",
                 reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
             )
             return DEX_MENU
 
@@ -256,7 +248,6 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "🎯 **اسنایپرهای توکن**\n\n"
                 "لطفاً آدرس جفت (Pair Address) را ارسال کنید:\n\n"
                 "برای لغو: /cancel",
-                parse_mode='Markdown'
             )
             return DEX_SUBMENU
             
@@ -269,7 +260,6 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "لطفاً آدرس قرارداد توکن سولانا را ارسال کنید:\n\n"
                 "مثال: `7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr`\n\n"
                 "برای لغو: /cancel",
-                parse_mode='Markdown'
             )
             return DEX_SUBMENU
 
@@ -282,7 +272,6 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
         )
 
     except Exception as e:
@@ -335,7 +324,6 @@ async def handle_coin_option(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "لطفاً نام یا نماد کوین مورد نظر را وارد کنید:\n\n"
                 "مثال: Bitcoin یا BTC\n\n"
                 "برای لغو: /cancel",
-                parse_mode='Markdown'
             )
             return DEX_SUBMENU  # استفاده از همان state
 
@@ -363,7 +351,6 @@ async def handle_coin_option(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "🏢 **ذخایر شرکت‌ها**\n\n"
                 "لطفاً کوین مورد نظر را انتخاب کنید:",
                 reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
             )
             return COIN_MENU
 
@@ -376,7 +363,6 @@ async def handle_coin_option(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
         )
 
     except Exception as e:
@@ -414,7 +400,6 @@ async def handle_trending_options(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
         )
 
     except Exception as e:
@@ -535,7 +520,6 @@ async def process_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
         )
 
         # پاک کردن وضعیت
@@ -949,7 +933,10 @@ def format_trending_all_networks(data):
             # استخراج نام و نماد
             name = base_token.get("name", "نامشخص")
             symbol = base_token.get("symbol", "نامشخص")
-            
+            # پاک کردن کاراکترهای خاص
+            name = name.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
+            symbol = symbol.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
+
             # پاک کردن کاراکترهای خاص
             name = name.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
             symbol = symbol.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
@@ -1324,24 +1311,57 @@ def format_global_stats(data):
     return message
 
 def format_defi_stats(data):
-    """فرمت کردن آمار DeFi"""
+    """فرمت کردن آمار DeFi - اصلاح شده"""
     if data.get("error") or "data" not in data:
         return "❌ خطا در دریافت آمار DeFi."
     
     stats = data["data"]
-    message = "🏦 **آمار DeFi**\n\n"
+    message = "🏦 آمار DeFi\n\n"
     
-    # کل بازار DeFi
+    # کل بازار DeFi - اصلاح تبدیل string به float
     defi_market_cap = stats.get("defi_market_cap", 0)
-    message += f"💎 **کل بازار DeFi:** ${defi_market_cap:,.0f}\n"
+    try:
+        if isinstance(defi_market_cap, str):
+            defi_market_cap = float(defi_market_cap.replace(",", ""))
+        else:
+            defi_market_cap = float(defi_market_cap)
+        
+        if defi_market_cap >= 1000000000:
+            message += f"💎 کل بازار DeFi: ${defi_market_cap/1000000000:.2f}B\n"
+        elif defi_market_cap >= 1000000:
+            message += f"💎 کل بازار DeFi: ${defi_market_cap/1000000:.2f}M\n"
+        else:
+            message += f"💎 کل بازار DeFi: ${defi_market_cap:,.0f}\n"
+    except (ValueError, TypeError):
+        message += f"💎 کل بازار DeFi: نامشخص\n"
     
-    # درصد از کل بازار
-    defi_dominance = stats.get("defi_to_eth_ratio", 0) * 100
-    message += f"📊 **سهم از کل بازار:** {defi_dominance:.2f}%\n"
+    # درصد از کل بازار - اصلاح
+    defi_dominance_raw = stats.get("defi_to_eth_ratio", 0)
+    try:
+        if isinstance(defi_dominance_raw, str):
+            defi_dominance = float(defi_dominance_raw) * 100
+        else:
+            defi_dominance = float(defi_dominance_raw) * 100
+        message += f"📊 سهم از کل بازار: {defi_dominance:.2f}%\n"
+    except (ValueError, TypeError):
+        message += f"📊 سهم از کل بازار: نامشخص\n"
     
-    # حجم معاملات DeFi
-    trading_volume = stats.get("trading_volume_24h", 0)
-    message += f"📈 **حجم معاملات 24ساعته:** ${trading_volume:,.0f}\n"
+    # حجم معاملات DeFi - اصلاح
+    trading_volume_raw = stats.get("trading_volume_24h", 0)
+    try:
+        if isinstance(trading_volume_raw, str):
+            trading_volume = float(trading_volume_raw.replace(",", ""))
+        else:
+            trading_volume = float(trading_volume_raw)
+        
+        if trading_volume >= 1000000000:
+            message += f"📈 حجم معاملات 24ساعته: ${trading_volume/1000000000:.2f}B\n"
+        elif trading_volume >= 1000000:
+            message += f"📈 حجم معاملات 24ساعته: ${trading_volume/1000000:.2f}M\n"
+        else:
+            message += f"📈 حجم معاملات 24ساعته: ${trading_volume:,.0f}\n"
+    except (ValueError, TypeError):
+        message += f"📈 حجم معاملات 24ساعته: نامشخص\n"
     
     return message
 
