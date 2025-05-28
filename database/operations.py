@@ -1,6 +1,10 @@
 import sqlite3
-import psycopg2
-import psycopg2.extras
+# import psycopg2  # فقط برای production
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:
+    psycopg2 = None
 import datetime
 import os
 import secrets

@@ -6,7 +6,7 @@ import os
 import psycopg2
 
 # Database URL از .env فایل
-DATABASE_URL = "postgresql://postgres:cOXpRpjZhCxoiVLZzdoWzCIaKVBaefBq@postgres.railway.internal:5432/railway"
+DATABASE_URL = None  # استفاده از SQLite
 
 def simple_migration():
     """Migration ساده با URL مستقیم"""
@@ -14,7 +14,8 @@ def simple_migration():
     print("🔗 Connecting to database...")
     
     try:
-        conn = psycopg2.connect(DATABASE_URL)
+        import sqlite3
+        conn = sqlite3.connect('bot_database.db')
         conn.autocommit = False
         cursor = conn.cursor()
         

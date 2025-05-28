@@ -25,6 +25,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.effective_user.username
     register_user(user_id, username)
     
+    # پردازش کد رفرال اگر وجود داشته باشد
+    if context.args and len(context.args) > 0:
+        referral_param = context.args[0]
+        if referral_param.startswith("REF"):
+            # پردازش رفرال
+            from database.operations import create_referral_relationship
+            result = create_referral_relationship(referral_param, user_id)
+            
+            if result.get("success"):
+                # نمایش پیام موفقیت به کاربر جدید
+                referrer_id = result.get("referrer_id")
+                await update.message.reply_text(
+                    f"🎉 شما از طریق کد دعوت وارد شده‌اید!\n"
+                    f"با خرید اشتراک، دعوت‌کننده شما کمیسیون دریافت می‌کند."
+                )
+            elif "قبلاً ثبت شده" in result.get("error", ""):
+                # کاربر قبلاً از این کد استفاده کرده
+                await update.message.reply_text(
+                    "شما قبلاً از این کد دعوت استفاده کرده‌اید."
+                )
+    
    # ایجاد منوی اصلی
     main_menu_buttons = [
         [InlineKeyboardButton("📊 تحلیل نمودارها با هوش مصنوعی TNT", callback_data="analyze_charts")],

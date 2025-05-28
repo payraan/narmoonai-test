@@ -231,16 +231,8 @@ def main():
     # اجرای bot با مدیریت خطای بهبود یافته
     try:
         print("🚀 Starting bot polling...")
-        app.run_polling(
-            drop_pending_updates=True,
-            allowed_updates=None,
-            poll_interval=1.0,
-            timeout=20,
-            bootstrap_retries=3,
-            read_timeout=30,
-            write_timeout=30,
-            connect_timeout=30
-        )
+        app.run_polling()
+
     except Conflict:
         print("❌ Bot conflict detected!")
         print("🔧 Another bot instance is running. Please:")
