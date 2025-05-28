@@ -1,4 +1,4 @@
-# main.py - بهبود یافته با مدیریت خطا
+# main.py - بهبود یافته با مدیریت خطا و پشتیبانی کامل از سیستم رفرال
 
 import asyncio
 import logging
@@ -79,7 +79,7 @@ def main():
         else:
             print("⚠️ Migration had issues but continuing...")
         
-        # اضافه کن این 4 خط:
+        # اجرای Referral Migration
         print("🔧 Fixing referral tables...")
         if fix_referral_migration():
             print("✅ Referral fix completed!")
@@ -99,7 +99,7 @@ def main():
     # اضافه کردن error handler
     app.add_error_handler(error_handler)
 
-    # تعریف conversation handler با per_message=True برای حل warning
+    # تعریف conversation handler
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
@@ -146,7 +146,6 @@ def main():
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$")
             ],
             SELECTING_STRATEGY: [
-                # 🔥 FIX: اصلاح خط 131 - string pattern کامل شده
                 CallbackQueryHandler(handle_strategy_selection, pattern=r'^(strategy_.*|ignore)$'),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$"),
@@ -163,7 +162,7 @@ def main():
             CallbackQueryHandler(start, pattern="^main_menu$")
         ],
         allow_reentry=True,
-        per_message=False  # حل warning PTB
+        per_message=False
     )
 
     # افزودن handlers
@@ -233,14 +232,14 @@ def main():
     try:
         print("🚀 Starting bot polling...")
         app.run_polling(
-            drop_pending_updates=True,  # نادیده گیری pending updates
-            allowed_updates=None,  # دریافت همه نوع updates
-            poll_interval=1.0,  # فاصله polling
-            timeout=20,  # timeout برای long polling
-            bootstrap_retries=3,  # تلاش مجدد در صورت خطا
-            read_timeout=30,  # timeout خواندن
-            write_timeout=30,  # timeout نوشتن
-            connect_timeout=30  # timeout اتصال
+            drop_pending_updates=True,
+            allowed_updates=None,
+            poll_interval=1.0,
+            timeout=20,
+            bootstrap_retries=3,
+            read_timeout=30,
+            write_timeout=30,
+            connect_timeout=30
         )
     except Conflict:
         print("❌ Bot conflict detected!")

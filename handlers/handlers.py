@@ -644,7 +644,7 @@ async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         # ساخت پیام پنل رفرال
         referral_code = stats['referral_code']
-        referral_link = f"https://t.me/YourBotUsername?start={referral_code}"
+        referral_link = f"https://t.me/NarmoonAI_BOT?start={referral_code}"
         
         message = f"""💰 **پنل رفرال شما**
 
