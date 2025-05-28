@@ -105,7 +105,6 @@ def main():
         entry_points=[CommandHandler("start", start)],
         states={
             MAIN_MENU: [
-                CallbackQueryHandler(debug_callback_handler),  # اضافه کن اینجا
                 CallbackQueryHandler(handle_main_menu),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
