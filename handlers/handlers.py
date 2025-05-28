@@ -646,36 +646,36 @@ async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
         referral_code = stats['referral_code']
         referral_link = f"https://t.me/NarmoonAI_BOT?start={referral_code}"
         
-        message = f"""💰 **پنل رفرال شما**
+        message = f"""💰 پنل رفرال شما
 
-🔗 **لینک دعوت:**
-`{referral_link}`
+🔗 لینک دعوت:
+{referral_link}
 
-📊 **آمار خریداران:**
-✅ خریداران موفق: **{stats['successful_referrals']} نفر**
+📊 آمار خریداران:
+✅ خریداران موفق: {stats['successful_referrals']} نفر
 
-💵 **وضعیت مالی:**
-💰 کل درآمد: **${stats['total_earned']:.2f}**
-💳 قابل برداشت: **${stats['pending_amount']:.2f}**
-🏦 پرداخت شده: **${stats['total_paid']:.2f}**
+💵 وضعیت مالی:
+💰 کل درآمد: ${stats['total_earned']:.2f}
+💳 قابل برداشت: ${stats['pending_amount']:.2f}
+🏦 پرداخت شده: ${stats['total_paid']:.2f}
 
 """
         
         # اضافه کردن لیست خریداران
         if stats['buyers']:
-            message += "👥 **جزئیات خریداران:**\n"
+            message += "👥 جزئیات خریداران:\n"
             for i, buyer in enumerate(stats['buyers'][:5], 1):  # فقط 5 تای اول
                 plan_emoji = "📅" if buyer['plan_type'] == "ماهانه" else "📆"
                 status_emoji = "💰" if buyer['status'] == 'pending' else "✅"
-                message += f"{i}. {status_emoji} **{buyer['username']}**\n"
+                message += f"{i}. {status_emoji} {buyer['username']}\n"
                 message += f"   {plan_emoji} {buyer['plan_type']} - ${buyer['amount']:.2f}\n"
             
             if len(stats['buyers']) > 5:
                 message += f"... و {len(stats['buyers']) - 5} نفر دیگر\n"
         
         message += f"""
-📞 **برای دریافت پول:**
-حداقل مبلغ برداشت: **$20**
+📞 برای دریافت پول:
+حداقل مبلغ برداشت: $20
 پیام خصوصی به @Sultan_immortal
 + شماره کیف پول خود را ارسال کنید
 
@@ -690,8 +690,8 @@ async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         await query.edit_message_text(
             message,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
+            reply_markup=InlineKeyboardMarkup(keyboard)
+            # حذف parse_mode='Markdown' برای جلوگیری از خطا
         )
         
         return MAIN_MENU
