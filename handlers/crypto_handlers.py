@@ -445,7 +445,6 @@ async def handle_treasury_options(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
         )
 
     except Exception as e:
@@ -951,6 +950,10 @@ def format_trending_all_networks(data):
             name = base_token.get("name", "نامشخص")
             symbol = base_token.get("symbol", "نامشخص")
             
+            # پاک کردن کاراکترهای خاص
+            name = name.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
+            symbol = symbol.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
+
             # اگر نام یا نماد خالی باشد، از pool name استفاده کن
             if not name or name == "نامشخص":
                 pool_name = attributes.get("name", f"توکن_{i}")
