@@ -14,6 +14,7 @@ from config.constants import (
 
 from database.operations import init_db
 from simple_migration import simple_migration
+from fix_referral_migration import fix_referral_migration
 
 # Import handlers
 from handlers.handlers import (
@@ -77,6 +78,13 @@ def main():
             print("✅ Migration completed!")
         else:
             print("⚠️ Migration had issues but continuing...")
+        
+        # اضافه کن این 4 خط:
+        print("🔧 Fixing referral tables...")
+        if fix_referral_migration():
+            print("✅ Referral fix completed!")
+        else:
+            print("⚠️ Referral fix had issues but continuing...")
         
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
