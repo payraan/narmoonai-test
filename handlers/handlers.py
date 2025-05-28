@@ -726,3 +726,79 @@ async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
             ]])
         )
         return MAIN_MENU
+
+async def handle_referral_copy_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """کپی لینک رفرال"""
+    query = update.callback_query
+    await query.answer()
+    
+    callback_data = query.data
+    referral_code = callback_data.replace("copy_link_", "")
+    referral_link = f"https://t.me/NarmoonAI_BOT?start={referral_code}"
+    
+    await query.edit_message_text(
+        f"🔗 **لینک رفرال شما:**\n\n"
+        f"`{referral_link}`\n\n"
+        f"💡 این لینک را کپی کرده و با دوستان خود به اشتراک بگذارید.\n"
+        f"برای هر خرید موفق، کمیسیون دریافت خواهید کرد!",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔙 بازگشت به پنل", callback_data="referral_panel")
+        ]]),
+        parse_mode='Markdown'
+    )
+    return MAIN_MENU
+
+async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش جزئیات کامل رفرال"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = update.effective_user.id
+    
+    from database.operations import get_referral_stats
+    stats = get_referral_stats(user_id)
+    
+    if not stats.get('success'):
+        await query.edit_message_text(
+            "❌ خطا در دریافت جزئیات رفرال.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 بازگشت", callback_data="referral_panel")
+            ]])
+        )
+        return MAIN_MENU
+    
+    message = f"""📊 **جزئیات کامل رفرال**
+
+🔗 **کد رفرال:** `{stats['referral_code']}`
+
+💰 **آمار مالی:**
+- کل درآمد: ${stats['total_earned']:.2f}
+- پرداخت شده: ${stats['total_paid']:.2f}
+- در انتظار: ${stats['pending_amount']:.2f}
+
+👥 **آمار دعوت:**
+- کل دعوت‌های موفق: {stats['successful_referrals']} نفر
+
+"""
+    
+    if stats['buyers']:
+        message += "🛒 **لیست خریداران:**\n"
+        for i, buyer in enumerate(stats['buyers'], 1):
+            status_emoji = "✅" if buyer['status'] == 'paid' else "⏳"
+            message += f"{i}. {status_emoji} {buyer['username']}\n"
+            message += f"   📅 {buyer['plan_type']} - ${buyer['amount']:.2f}\n"
+            message += f"   📆 {buyer['date'][:10]}\n\n"
+    
+    message += """💡 **نکات مهم:**
+- حداقل مبلغ برداشت: $20
+- برای برداشت با @Sultan_immortal تماس بگیرید
+- کمیسیون پس از تایید پرداخت محاسبه می‌شود"""
+    
+    await query.edit_message_text(
+        message,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔙 بازگشت به پنل", callback_data="referral_panel")
+        ]]),
+        parse_mode='Markdown'
+    )
+    return MAIN_MENU

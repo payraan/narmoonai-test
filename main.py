@@ -23,7 +23,7 @@ from handlers.handlers import (
     handle_strategy_selection, receive_images, cancel,
     show_narmoon_products, show_ai_features, show_faq, usage_guide,
     terms_and_conditions, subscription_plans, support_contact,
-    show_referral_panel
+    show_referral_panel, handle_referral_copy_link, handle_referral_details
 )
 
 from handlers.crypto_handlers import (
@@ -100,14 +100,16 @@ def main():
     app.add_error_handler(error_handler)
 
     # تعریف conversation handler
-    conv_handler = ConversationHandler(
+    conv_handler = ConversationHandler( 
         entry_points=[CommandHandler("start", start)],
         states={
             MAIN_MENU: [
                 CallbackQueryHandler(handle_main_menu),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
-                CallbackQueryHandler(show_referral_panel, pattern="^referral_panel$")
+                CallbackQueryHandler(show_referral_panel, pattern="^referral_panel$"),
+                CallbackQueryHandler(handle_referral_copy_link, pattern="^copy_link_"),
+                CallbackQueryHandler(handle_referral_details, pattern="^referral_details$"),
             ],
             CRYPTO_MENU: [
                 CallbackQueryHandler(dex_menu, pattern="^narmoon_dex$"),
