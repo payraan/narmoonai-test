@@ -111,6 +111,7 @@ def main():
                 CallbackQueryHandler(show_referral_panel, pattern="^referral_panel$"),
                 CallbackQueryHandler(handle_referral_copy_link, pattern="^copy_link_"),
                 CallbackQueryHandler(handle_referral_details, pattern="^referral_details$"),
+                CallbackQueryHandler(debug_callback_handler),  # این خط را اضافه کنید
             ],
             CRYPTO_MENU: [
                 CallbackQueryHandler(dex_menu, pattern="^narmoon_dex$"),

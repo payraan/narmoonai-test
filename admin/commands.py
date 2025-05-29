@@ -9,7 +9,7 @@ async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         await update.message.reply_text("شما دسترسی به این دستور را ندارید.")
         return
-    
+
     try:
         # بررسی پارامترها
         args = context.args
@@ -19,58 +19,85 @@ async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "مثال: /activate 123456789 3 سه_ماهه"
             )
             return
-        
+
         user_id = int(args[0])
         duration = int(args[1])
         plan_type = args[2]
-        
+
         # فعال‌سازی اشتراک
         end_date = activate_subscription(user_id, duration, plan_type)
+
+        # ⭐ اضافه: محاسبه کمیسیون رفرال ⭐
+        from database.operations import get_connection, calculate_commission
         
+        # بررسی اینکه آیا این کاربر از طریق رفرال آمده
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            is_postgres = hasattr(conn, 'server_version')
+            
+            # پیدا کردن referrer برای این کاربر
+            if is_postgres:
+                cursor.execute("SELECT referrer_id FROM referrals WHERE referred_id = %s", (user_id,))
+            else:
+                cursor.execute("SELECT referrer_id FROM referrals WHERE referred_id = ?", (user_id,))
+            
+            referrer = cursor.fetchone()
+            conn.close()
+            
+            if referrer:
+                referrer_id = referrer[0]
+                print(f"🔍 Found referrer {referrer_id} for user {user_id}")
+                
+                # حالا کمیسیون را محاسبه کن
+                commission_result = calculate_commission(referrer_id, user_id, plan_type, None)
+                
+                if commission_result.get("success"):
+                    commission_amount = commission_result.get("total_amount", 0)
+                    successful_referrals = commission_result.get("successful_referrals", 0)
+                    
+                    # اطلاع به ادمین
+                    await update.message.reply_text(
+                        f"💰 کمیسیون رفرال محاسبه شد!\n"
+                        f"👤 رفرردهنده: {referrer_id}\n"
+                        f"💵 مبلغ کمیسیون: ${commission_amount:.2f}\n"
+                        f"📊 تعداد رفرال‌های موفق: {successful_referrals}"
+                    )
+                    
+                    print(f"✅ Commission calculated: Referrer {referrer_id} -> User {user_id}: ${commission_amount}")
+                else:
+                    error_msg = commission_result.get("error", "Unknown error")
+                    print(f"❌ Commission calculation failed: {error_msg}")
+                    await update.message.reply_text(f"⚠️ خطا در محاسبه کمیسیون: {error_msg}")
+            else:
+                print(f"ℹ️ No referral relationship found for user {user_id}")
+                
+        except Exception as commission_error:
+            print(f"❌ Commission calculation error: {commission_error}")
+            await update.message.reply_text(f"⚠️ خطا در بررسی رفرال: {str(commission_error)}")
+
         # ارسال پیام به ادمین
         await update.message.reply_text(
-            f"اشتراک کاربر {user_id} با موفقیت فعال شد.\n"
-            f"تاریخ پایان: {end_date}"
+            f"✅ اشتراک کاربر {user_id} با موفقیت فعال شد.\n"
+            f"📅 تاریخ پایان: {end_date}"
         )
-        
+
         # ارسال پیام به کاربر
         try:
             await context.bot.send_message(
                 chat_id=user_id,
                 text=f"🎉 اشتراک شما با موفقیت فعال شد!\n\n"
-                     f"نوع اشتراک: {plan_type}\n"
-                     f"تاریخ پایان: {end_date}\n\n"
+                     f"🔹 نوع اشتراک: {plan_type}\n"
+                     f"📅 تاریخ پایان: {end_date}\n\n"
                      f"از خرید شما متشکریم! برای شروع دستور /start را بزنید."
             )
         except Exception as e:
             await update.message.reply_text(
                 f"اشتراک فعال شد اما ارسال پیام به کاربر با خطا مواجه شد: {str(e)}"
             )
-    
+
     except Exception as e:
         await update.message.reply_text(f"خطا در فعال‌سازی اشتراک: {str(e)}")
-
-async def admin_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """راهنمای دستورات ادمین"""
-    # بررسی دسترسی ادمین
-    if update.effective_user.id != ADMIN_ID:
-        return
-    
-    help_text = """
-👨‍💻 راهنمای دستورات مدیریتی:
-
-/adminhelp - نمایش این راهنما
-/activate user_id duration plan_type - فعال‌سازی اشتراک کاربر
-مثال: /activate 123456789 3 سه_ماهه
-
-/userinfo user_id - نمایش اطلاعات کاربر
-مثال: /userinfo 123456789
-
-/stats - آمار کلی ربات
-/broadcast - ارسال پیام به همه کاربران
-    """
-    
-    await update.message.reply_text(help_text)
 
 async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش اطلاعات کاربر برای ادمین"""

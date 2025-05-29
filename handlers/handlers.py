@@ -1,7 +1,7 @@
 import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-
+from datetime import datetime
 from config.constants import (
     MAIN_MENU, SELECTING_MARKET, SELECTING_TIMEFRAME,
     SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS,
@@ -804,19 +804,59 @@ async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_
     return MAIN_MENU
 
 async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Debug handler برای تمام callback ها"""
-    query = update.callback_query
-    await query.answer()
-    
-    callback_data = query.data
-    print(f"🔍 DEBUG: Received callback: '{callback_data}'")
-    
-    if callback_data.startswith("copy_link_"):
-        print("🎯 DEBUG: Copy link detected - calling handler")
-        return await handle_referral_copy_link(update, context)
-    elif callback_data == "referral_details":
-        print("🎯 DEBUG: Details detected - calling handler") 
-        return await handle_referral_details(update, context)
-    
-    print(f"❌ DEBUG: Unhandled callback: {callback_data}")
-    return MAIN_MENU
+   """Debug handler برای تمام callback ها"""
+   query = update.callback_query
+   await query.answer()
+   
+   callback_data = query.data
+   user_id = update.effective_user.id
+   user_name = update.effective_user.username or "Anonymous"
+   
+   print(f"🔍 DEBUG: Received callback: '{callback_data}'")
+   print(f"👤 DEBUG: User ID: {user_id}, Username: @{user_name}")
+   print(f"⏰ DEBUG: Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+   
+   try:
+       if callback_data.startswith("copy_link_"):
+           print("🎯 DEBUG: Copy link detected - calling handler")
+           return await handle_referral_copy_link(update, context)
+       elif callback_data == "referral_details":
+           print("🎯 DEBUG: Details detected - calling handler") 
+           return await handle_referral_details(update, context)
+       elif callback_data == "referral_panel":
+           print("🎯 DEBUG: Referral panel detected - calling handler")
+           return await show_referral_panel(update, context)
+       else:
+           print(f"❌ DEBUG: Unhandled callback: {callback_data}")
+           
+           # ارسال پیام debug به کاربر
+           await query.edit_message_text(
+               f"🔍 Debug Info:\n"
+               f"Callback: `{callback_data}`\n"
+               f"Status: Unhandled\n\n"
+               f"Please report this to support.",
+               reply_markup=InlineKeyboardMarkup([[
+                   InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
+               ]]),
+               parse_mode='Markdown'
+           )
+           
+   except Exception as e:
+       error_msg = str(e)
+       print(f"💥 DEBUG: Exception in callback handler: {error_msg}")
+       print(f"📍 DEBUG: Callback data was: {callback_data}")
+       
+       try:
+           await query.edit_message_text(
+               f"❌ خطا در پردازش درخواست:\n"
+               f"`{error_msg}`\n\n"
+               f"Callback: `{callback_data}`",
+               reply_markup=InlineKeyboardMarkup([[
+                   InlineKeyboardButton("🔙 بازگشت", callback_data="main_menu")
+               ]]),
+               parse_mode='Markdown'
+           )
+       except Exception as send_error:
+           print(f"💥 DEBUG: Failed to send error message: {send_error}")
+   
+   return MAIN_MENU
