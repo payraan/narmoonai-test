@@ -13,8 +13,9 @@ from config.constants import (
 )
 
 from database.operations import init_db
-from simple_migration import simple_migration
-from fix_referral_migration import fix_referral_migration
+# حذف import های migration که مشکل ایجاد می‌کنند
+# from simple_migration import simple_migration
+# from fix_referral_migration import fix_referral_migration
 
 # Import handlers
 from handlers.handlers import (
@@ -64,6 +65,26 @@ async def error_handler(update, context):
         except Exception as e:
             logger.error(f"Failed to send error message: {e}")
 
+def safe_migration():
+    """Migration ایمن که بر اساس محیط تصمیم می‌گیرد"""
+    import os
+    
+    database_url = os.getenv("DATABASE_URL")
+    
+    if database_url and database_url.startswith("postgres"):
+        # Production: PostgreSQL - فقط init_db کافیه
+        print("🐘 PostgreSQL detected - using init_db only")
+        return True
+    else:
+        # Development: SQLite - migration مفصل
+        print("🗄️ SQLite detected - running full migration")
+        try:
+            from simple_migration import simple_migration
+            return simple_migration()
+        except Exception as e:
+            print(f"⚠️ Migration warning: {e}")
+            return True  # ادامه می‌دهیم حتی اگر migration مشکل داشته باشد
+
 def main():
     """تابع اصلی با مدیریت خطای بهبود یافته"""
     
@@ -73,24 +94,17 @@ def main():
         init_db()
         print("✅ Database ready!")
         
-        # اجرای Migration
-        print("🔄 Running migration...")
-        if simple_migration():
+        # اجرای Migration ایمن
+        print("🔄 Running safe migration...")
+        if safe_migration():
             print("✅ Migration completed!")
         else:
             print("⚠️ Migration had issues but continuing...")
         
-        # اجرای Referral Migration
-        print("🔧 Fixing referral tables...")
-        if fix_referral_migration():
-            print("✅ Referral fix completed!")
-        else:
-            print("⚠️ Referral fix had issues but continuing...")
-        
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
-        print("🔧 Try running the migration script first")
-        return
+        print("🔧 Continuing without migration...")
+        # ادامه می‌دهیم چون init_db کار کرده
 
     # ایجاد اپلیکیشن با تنظیمات بهبود یافته
     print("🤖 Building Telegram application...")

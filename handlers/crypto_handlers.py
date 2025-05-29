@@ -14,6 +14,17 @@ from config.constants import (
 from database.operations import check_subscription, check_user_api_limit, log_api_request
 import asyncio
 from utils.helpers import format_token_price
+def escape_markdown_v2(text):
+    """Escape کردن کاراکترهای خاص برای Markdown V2"""
+    if not text:
+        return text
+    
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    
+    for char in special_chars:
+        text = text.replace(char, f'\\{char}')
+    
+    return text
 
 async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش منوی رمزارز با اطلاعات بازار به‌روزرسانی شده"""
@@ -919,7 +930,7 @@ def format_boosted_tokens(data):
     return message
 
 def format_trending_all_networks(data):
-    """فرمت کردن توکن های داغ همه شبکه ها - آدرس قابل کپی"""
+    """فرمت کردن توکن های داغ همه شبکه ها - با حل مشکل Markdown"""
     if isinstance(data, dict) and data.get("error"):
         return "❌ خطا در دریافت توکن‌های ترند."
     
@@ -945,26 +956,35 @@ def format_trending_all_networks(data):
             attributes = pool.get("attributes", {})
             base_token = attributes.get("base_token", {})
             
-            # استخراج نام و نماد
-            name = base_token.get("name", "نامشخص")
-            symbol = base_token.get("symbol", "نامشخص")
-            # پاک کردن کاراکترهای خاص
-            name = name.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
-            symbol = symbol.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
-
-            # اگر نام یا نماد خالی باشد، از pool name استفاده کن
+            # استخراج نام و نماد با پاک کردن کاراکترهای خاص
+            raw_name = base_token.get("name", "نامشخص")
+            raw_symbol = base_token.get("symbol", "نامشخص")
+            
+            # پاک کردن کاراکترهای مشکل‌ساز
+            name = raw_name.replace("*", "").replace("_", "").replace("[", "").replace("]", "").replace("`", "")
+            symbol = raw_symbol.replace("*", "").replace("_", "").replace("[", "").replace("]", "").replace("`", "")
+            
+            # اگر نام یا نماد خالی شد، از pool name استفاده کن
             if not name or name == "نامشخص":
                 pool_name = attributes.get("name", f"توکن_{i}")
                 if " / " in pool_name:
-                    name = pool_name.split(" / ")[0]
+                    name = pool_name.split(" / ")[0].replace("*", "").replace("_", "").replace("`", "")
                 else:
-                    name = pool_name
+                    name = pool_name.replace("*", "").replace("_", "").replace("`", "")
             
             if not symbol or symbol == "نامشخص":
                 if " / " in attributes.get("name", ""):
-                    symbol = attributes.get("name", "").split(" / ")[0][:10]
+                    symbol = attributes.get("name", "").split(" / ")[0][:10].replace("*", "").replace("_", "").replace("`", "")
                 else:
                     symbol = name[:6] if name != "نامشخص" else f"TKN{i}"
+            
+            # محدود کردن طول نام و نماد
+            name = name[:20] if len(name) > 20 else name
+            symbol = symbol[:10] if len(symbol) > 10 else symbol
+            
+            # Escape کردن نام و نماد برای ایمنی
+            safe_name = escape_markdown_v2(name)
+            safe_symbol = escape_markdown_v2(symbol)
             
             # استخراج شبکه
             network = "نامشخص"
@@ -1000,18 +1020,30 @@ def format_trending_all_networks(data):
             except (ValueError, TypeError):
                 volume = 0.0
             
-            message += f"{i}. **{name}** ({symbol})\n"
-            message += f"   🌐 شبکه: {network}\n"
-            message += f"   💰 قیمت: {format_token_price(price)}\n"
-            message += f"   📈 تغییر 24س: {price_change:+.2f}%\n"
-            if volume > 0:
-                message += f"   📊 حجم: ${volume:,.0f}\n"
-            
-            # ⭐ آدرس قابل کپی - اصلاح شده
-            if token_address:
-                message += f"   📍 آدرس: `{token_address}`\n"
-            
-            message += "\n"
+            # ساخت پیام با فرمت ایمن
+            try:
+                message += f"{i}\\. **{safe_name}** \\({safe_symbol}\\)\n"
+                message += f"   🌐 شبکه: {escape_markdown_v2(network)}\n"
+                message += f"   💰 قیمت: {format_token_price(price)}\n"
+                message += f"   📈 تغییر 24س: {price_change:+.2f}%\n"
+                
+                if volume > 0:
+                    message += f"   📊 حجم: ${volume:,.0f}\n"
+                
+                # آدرس قابل کپی - با بررسی اعتبار
+                if token_address and len(token_address) > 10:
+                    message += f"   📍 آدرس: `{token_address}`\n"
+                
+                message += "\n"
+                
+            except Exception as format_error:
+                print(f"Error formatting token {i}: {format_error}")
+                # فرمت ساده در صورت خطا
+                message += f"{i}. Token {i}\n"
+                message += f"   💰 قیمت: {format_token_price(price)}\n"
+                if token_address:
+                    message += f"   📍 آدرس: `{token_address}`\n"
+                message += "\n"
     
     return message
 
