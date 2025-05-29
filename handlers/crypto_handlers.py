@@ -1027,7 +1027,7 @@ def format_combined_solana_trending(data):
     
     message = "🔗 **توکن های داغ سولانا**\n\n"
     
-    tokens = data.get("combined_tokens", [])[:15]
+    tokens = data.get("combined_tokens", [])[:12]
     for i, token in enumerate(tokens, 1):
         name = token.get("name", "نامشخص")
         symbol = token.get("symbol", "نامشخص")
