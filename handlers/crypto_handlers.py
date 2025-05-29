@@ -377,60 +377,41 @@ async def handle_coin_option(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return COIN_MENU
 
 async def handle_trending_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
-   """پردازش گزینه های توکن های داغ"""
-   query = update.callback_query
-   await query.answer()
-           
-   option = query.data
-   await query.edit_message_text("⏳ در حال دریافت توکن‌های ترند...")
-       
-   try:
-       if option == "trending_all_networks":
-           data = direct_api_service.geckoterminal_trending_all()
-           message = format_trending_all_networks(data)
-       
-       elif option == "trending_solana_only":
-           # 🔍 DEBUG - اضافه شده موقتی
-           print("🔍 DEBUG: Starting Solana trending...")
-           
-           # ترکیب داده‌ها از GeckoTerminal و Moralis
-           combined_data = await direct_api_service.get_combined_solana_trending()
-           
-           # 🔍 DEBUG - اضافه شده موقتی  
-           print(f"🔍 DEBUG: Got {len(combined_data.get('combined_tokens', []))} tokens")
-           
-           message = format_combined_solana_trending(combined_data)
-           
-           # 🔍 DEBUG - اضافه شده موقتی
-           print(f"🔍 DEBUG: Message length = {len(message)} characters")
-           print(f"🔍 DEBUG: Over limit? {len(message) > 4096}")
-           if len(message) > 4000:
-               print(f"🔍 DEBUG: First 100 chars: {message[:100]}")
-               print(f"🔍 DEBUG: Last 100 chars: {message[-100:]}")
-           
-       # دکمه بازگشت
-       keyboard = [[InlineKeyboardButton("🔙 بازگشت به دکس", callback_data="narmoon_dex")]]
-           
-       await query.edit_message_text(
-           message,
-           reply_markup=InlineKeyboardMarkup(keyboard),
-       )
-       
-   except Exception as e:
-       print(f"Error in handle_trending_options: {e}")
-       # 🔍 DEBUG - اضافه شده موقتی
-       print(f"🔍 DEBUG: Error type: {type(e).__name__}")
-       if 'message' in locals():
-           print(f"🔍 DEBUG: Message length when error occurred: {len(message)}")
-       
-       await query.edit_message_text(
-           format_error_message("general"),
-           reply_markup=InlineKeyboardMarkup([[
-               InlineKeyboardButton("🔙 بازگشت", callback_data="narmoon_dex")
-           ]])  
-       )
-               
-   return DEX_MENU
+    """پردازش گزینه های توکن های داغ"""
+    query = update.callback_query
+    await query.answer()
+            
+    option = query.data
+    await query.edit_message_text("⏳ در حال دریافت توکن‌های ترند...")
+        
+    try:
+        if option == "trending_all_networks":
+            data = direct_api_service.geckoterminal_trending_all()
+            message = format_trending_all_networks(data)
+        
+        elif option == "trending_solana_only":
+            # ترکیب داده‌ها از GeckoTerminal و Moralis
+            combined_data = await direct_api_service.get_combined_solana_trending()
+            message = format_combined_solana_trending(combined_data)
+            
+        # دکمه بازگشت
+        keyboard = [[InlineKeyboardButton("🔙 بازگشت به دکس", callback_data="narmoon_dex")]]
+            
+        await query.edit_message_text(
+            message,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+        
+    except Exception as e:
+        print(f"Error in handle_trending_options: {e}")
+        await query.edit_message_text(
+            format_error_message("general"),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 بازگشت", callback_data="narmoon_dex")
+            ]])  
+        )
+                
+    return DEX_MENU
 
 async def handle_treasury_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """پردازش گزینه‌های ذخایر شرکت‌ها"""
