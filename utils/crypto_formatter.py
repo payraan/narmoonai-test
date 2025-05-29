@@ -69,7 +69,7 @@ def format_market_overview(data):
     return message
 
 def format_token_info(data):
-    """فرمت کردن اطلاعات توکن"""
+    """فرمت کردن اطلاعات توکن - آدرس قابل کپی"""
     if data.get("error") or "data" not in data:
         return "❌ خطا در دریافت اطلاعات توکن."
     
@@ -85,7 +85,12 @@ def format_token_info(data):
     
     message += f"**نام:** {name}\n"
     message += f"**نماد:** {symbol}\n"
-    message += f"**آدرس:** `{address}`\n\n"
+    
+    # ⭐ آدرس قابل کپی - اصلاح شده
+    if address and address != "نامشخص":
+        message += f"**آدرس:** `{address}`\n\n"
+    else:
+        message += "\n"
     
     # قیمت و بازار
     price_usd = attributes.get("price_usd")
@@ -112,7 +117,7 @@ def format_token_info(data):
     return message
 
 def format_holders_info(holders_data, stats_data, deltas_data):
-    """فرمت کردن اطلاعات هولدرها"""
+    """فرمت کردن اطلاعات هولدرها - آدرس قابل کپی"""
     message = "👥 **اطلاعات هولدرهای توکن**\n\n"
     
     # آمار کلی
@@ -133,9 +138,15 @@ def format_holders_info(holders_data, stats_data, deltas_data):
         for delta in deltas_data[:5]:
             change_type = "خرید" if delta.get("delta", 0) > 0 else "فروش"
             amount = abs(delta.get("delta", 0))
-            address = delta.get("address", "نامشخص")[:8] + "..."
+            address = delta.get("address", "نامشخص")
             
-            message += f"• {address}: {change_type} {format_large_number(amount)}\n"
+            # ⭐ آدرس قابل کپی - اصلاح شده  
+            if len(address) > 8:
+                formatted_address = f"`{address[:8]}...{address[-4:]}`"
+            else:
+                formatted_address = f"`{address}`"
+            
+            message += f"• {formatted_address}: {change_type} {format_large_number(amount)}\n"
         message += "\n"
     
     # بزرگترین هولدرها
@@ -144,18 +155,24 @@ def format_holders_info(holders_data, stats_data, deltas_data):
         holders = holders_data["holders"][:10]
         
         for i, holder in enumerate(holders, 1):
-            address = holder.get("address", "نامشخص")[:8] + "..."
+            address = holder.get("address", "نامشخص")
             balance = holder.get("balance", 0)
             percentage = holder.get("percentage", 0)
             
-            message += f"{i}. {address}\n"
+            # ⭐ آدرس قابل کپی - اصلاح شده
+            if len(address) > 12:
+                formatted_address = f"`{address[:8]}...{address[-4:]}`"
+            else:
+                formatted_address = f"`{address[:12]}...`"
+            
+            message += f"{i}. {formatted_address}\n"
             message += f"   💰 موجودی: {format_large_number(balance)}\n"
             message += f"   📊 درصد: {percentage:.2f}%\n\n"
     
     return message
 
 def format_trending_tokens(data):
-    """فرمت کردن توکن‌های ترند"""
+    """فرمت کردن توکن‌های ترند - آدرس قابل کپی"""
     if data.get("error"):
         return "❌ خطا در دریافت توکن‌های ترند."
     
@@ -169,11 +186,18 @@ def format_trending_tokens(data):
             price = token.get("price", 0)
             price_change = token.get("price_change_24h", 0)
             volume = token.get("volume_24h", 0)
+            address = token.get("address", "")
             
             message += f"{i}. **{name}** ({symbol})\n"
             message += f"   💰 قیمت: {format_price(price)}\n"
             message += f"   📈 تغییر: {format_percentage(price_change)}\n"
-            message += f"   📊 حجم: ${format_large_number(volume)}\n\n"
+            message += f"   📊 حجم: ${format_large_number(volume)}\n"
+            
+            # ⭐ آدرس قابل کپی - اصلاح شده
+            if address:
+                message += f"   📍 آدرس: `{address}`\n"
+            
+            message += "\n"
     else:
         message += "هیچ توکن ترندی یافت نشد."
     

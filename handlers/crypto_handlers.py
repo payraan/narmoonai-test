@@ -66,11 +66,13 @@ async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 message,
                 reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
             )
         else:
             await update.message.reply_text(
                 message,
                 reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
             )
 
     except Exception as e:
@@ -133,6 +135,7 @@ async def dex_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "تحلیل تخصصی توکن‌های DEX سولانا\n\n"
         "لطفاً یکی از گزینه‌ها را انتخاب کنید:",
         reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
     )
 
     return DEX_MENU
@@ -171,6 +174,7 @@ async def coin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "تحلیل تخصصی کوین‌های معتبر و بازارهای متمرکز\n\n"
         "لطفاً یکی از گزینه‌ها را انتخاب کنید:",
         reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
     )
 
     return COIN_MENU
@@ -214,6 +218,7 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "لطفاً آدرس قرارداد توکن سولانا را ارسال کنید:\n\n"
                 "مثال: `7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr`\n\n"
                 "برای لغو: /cancel",
+                parse_mode='Markdown'
             )
             return DEX_SUBMENU
 
@@ -260,6 +265,7 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "لطفاً آدرس قرارداد توکن سولانا را ارسال کنید:\n\n"
                 "مثال: `7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr`\n\n"
                 "برای لغو: /cancel",
+                parse_mode='Markdown'
             )
             return DEX_SUBMENU
 
@@ -272,6 +278,7 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
         )
 
     except Exception as e:
@@ -363,6 +370,7 @@ async def handle_coin_option(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
         )
 
     except Exception as e:
@@ -400,6 +408,7 @@ async def handle_trending_options(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
         )
         
     except Exception as e:
@@ -430,6 +439,7 @@ async def handle_treasury_options(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
         )
 
     except Exception as e:
@@ -520,6 +530,7 @@ async def process_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
         )
 
         # پاک کردن وضعیت
@@ -537,10 +548,10 @@ async def process_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
         context.user_data.clear()
         return CRYPTO_MENU
 
-# === Helper Functions for Formatting ===
+# === Helper Functions for Formatting - FIXED FOR COPY-PASTE ===
 
 def format_token_info_enhanced(data):
-    """فرمت کردن اطلاعات کامل توکن - نسخه کاملتر"""
+    """فرمت کردن اطلاعات کامل توکن - نسخه کاملتر + آدرس قابل کپی"""
     if data.get("error") or "data" not in data:
         return "❌ خطا در دریافت اطلاعات توکن."
 
@@ -559,7 +570,11 @@ def format_token_info_enhanced(data):
     message += f"**📋 مشخصات پایه:**\n"
     message += f"• نام: **{name}**\n"
     message += f"• نماد: **{symbol}**\n"
-    message += f"• آدرس: `{address}`\n"
+    
+    # ⭐ آدرس قابل کپی - اصلاح شده
+    if address and address != "نامشخص":
+        message += f"• آدرس: `{address}`\n"
+    
     message += f"• شبکه: **Solana**\n"
     if categories:
         cats_text = ", ".join(categories)
@@ -785,7 +800,7 @@ def format_token_info_enhanced(data):
     return message
 
 def format_recently_updated_tokens(data):
-    """فرمت کردن توکن های آپدیت"""
+    """فرمت کردن توکن های آپدیت - آدرس قابل کپی"""
     if isinstance(data, dict) and data.get("error"):
         return "❌ خطا در دریافت اطلاعات توکن های آپدیت."
     
@@ -816,7 +831,7 @@ def format_recently_updated_tokens(data):
             message += f"{i}. **{name}** ({symbol})\n"
             message += f"   🌐 شبکه: Solana\n"
             
-            # آدرس کامل قابل کپی
+            # ⭐ آدرس قابل کپی - اصلاح شده
             if address:
                 message += f"   📍 آدرس: `{address}`\n"
             
@@ -840,7 +855,7 @@ def format_recently_updated_tokens(data):
     return message
 
 def format_boosted_tokens(data):
-    """فرمت کردن توکن‌های تقویت‌شده - نام بهتر"""
+    """فرمت کردن توکن‌های تقویت‌شده - آدرس قابل کپی"""
     if not isinstance(data, list) or not data:
         return "❌ هیچ توکن تقویت‌شده‌ای یافت نشد."
     
@@ -890,7 +905,7 @@ def format_boosted_tokens(data):
         message += f"{i}. **{token_name}** ({token_symbol})\n"
         message += f"   🌐 شبکه: Solana\n"
         
-        # آدرس قابل کپی
+        # ⭐ آدرس قابل کپی - اصلاح شده
         if token_address:
             message += f"   📍 آدرس: `{token_address}`\n"
         
@@ -904,7 +919,7 @@ def format_boosted_tokens(data):
     return message
 
 def format_trending_all_networks(data):
-    """فرمت کردن توکن های داغ همه شبکه ها - بهبود یافته"""
+    """فرمت کردن توکن های داغ همه شبکه ها - آدرس قابل کپی"""
     if isinstance(data, dict) and data.get("error"):
         return "❌ خطا در دریافت توکن‌های ترند."
     
@@ -933,10 +948,6 @@ def format_trending_all_networks(data):
             # استخراج نام و نماد
             name = base_token.get("name", "نامشخص")
             symbol = base_token.get("symbol", "نامشخص")
-            # پاک کردن کاراکترهای خاص
-            name = name.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
-            symbol = symbol.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
-
             # پاک کردن کاراکترهای خاص
             name = name.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
             symbol = symbol.replace("*", "").replace("_", "").replace("[", "").replace("]", "")
@@ -995,14 +1006,17 @@ def format_trending_all_networks(data):
             message += f"   📈 تغییر 24س: {price_change:+.2f}%\n"
             if volume > 0:
                 message += f"   📊 حجم: ${volume:,.0f}\n"
+            
+            # ⭐ آدرس قابل کپی - اصلاح شده
             if token_address:
                 message += f"   📍 آدرس: `{token_address}`\n"
+            
             message += "\n"
     
     return message
 
 def format_combined_solana_trending(data):
-    """فرمت کردن توکن های داغ سولانا ترکیبی - با آدرس"""
+    """فرمت کردن توکن های داغ سولانا ترکیبی - آدرس قابل کپی"""
     if not data.get("success"):
         return "❌ خطا در دریافت توکن‌های ترند سولانا."
     
@@ -1111,7 +1125,7 @@ def format_combined_solana_trending(data):
             except:
                 pass
         
-        # اضافه کردن آدرس کامل قابل کپی
+        # ⭐ آدرس قابل کپی - اصلاح شده
         if token_address and len(token_address) > 10 and not token_address.startswith(("sample", "fallback")):
             message += f"   📍 آدرس: `{token_address}`\n"
         
@@ -1122,10 +1136,10 @@ def format_combined_solana_trending(data):
     return message
 
 def format_holders_info_enhanced(holders_data, stats_data, deltas_data, token_address):
-    """فرمت کردن اطلاعات هولدرها - نسخه کاملتر"""
+    """فرمت کردن اطلاعات هولدرها - آدرس قابل کپی"""
     message = "👥 **اطلاعات کامل هولدرهای توکن**\n\n"
     
-    # اطلاعات توکن
+    # ⭐ آدرس توکن قابل کپی - اصلاح شده
     message += f"📍 **آدرس توکن:** `{token_address}`\n\n"
     
     # آمار کلی بهبود یافته
