@@ -34,7 +34,7 @@ from handlers.crypto_handlers import (
     process_user_input
 )
 
-from admin.commands import admin_activate, admin_help, admin_user_info, admin_stats, admin_broadcast
+from admin.commands import admin_activate, admin_user_info, admin_stats, admin_broadcast
 
 # Configure logging
 logging.basicConfig(
@@ -223,7 +223,7 @@ def main():
 
     # دستورات مدیریتی
     app.add_handler(CommandHandler("activate", admin_activate))
-    app.add_handler(CommandHandler("adminhelp", admin_help))
+    # app.add_handler(CommandHandler("adminhelp", admin_help))  # موقتاً غیرفعال
     app.add_handler(CommandHandler("userinfo", admin_user_info))
     app.add_handler(CommandHandler("stats", admin_stats))
     app.add_handler(CommandHandler("broadcast", admin_broadcast))
