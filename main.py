@@ -12,7 +12,7 @@ from config.constants import (
     CRYPTO_MENU, DEX_MENU, DEX_SUBMENU, COIN_MENU
 )
 
-from database.operations import init_db
+from database.operations import init_db, auto_migrate_tnt_system
 # حذف import های migration که مشکل ایجاد می‌کنند
 # from simple_migration import simple_migration
 # from fix_referral_migration import fix_referral_migration
@@ -92,6 +92,7 @@ def main():
         # ایجاد پایگاه داده
         print("🔧 Initializing database...")
         init_db()
+        auto_migrate_tnt_system()
         print("✅ Database ready!")
         
         # اجرای Migration ایمن

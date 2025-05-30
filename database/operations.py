@@ -1400,3 +1400,137 @@ def get_user_tnt_usage_stats(user_id: int):
         "monthly_percentage": (monthly_usage / user_plan["monthly_limit"] * 100) if user_plan["monthly_limit"] > 0 else 0,
         "hourly_percentage": (hourly_usage / user_plan["hourly_limit"] * 100) if user_plan["hourly_limit"] > 0 else 0
     }
+
+def auto_migrate_tnt_system():
+    """Auto migration برای سیستم TNT - اضافه کردن ستون‌ها اگر وجود نداشته باشند"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        print("🔄 Auto-migrating TNT system...")
+        
+        # بررسی وجود ستون tnt_plan_type
+        if is_postgres:
+            cursor.execute("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name='users' AND column_name='tnt_plan_type'
+            """)
+        else:
+            cursor.execute("PRAGMA table_info(users)")
+            columns = [row[1] for row in cursor.fetchall()]
+            tnt_exists = 'tnt_plan_type' in columns
+        
+        if is_postgres:
+            column_exists = cursor.fetchone() is not None
+        else:
+            column_exists = tnt_exists
+        
+        if not column_exists:
+            print("📝 Adding TNT columns to users table...")
+            
+            # اضافه کردن ستون‌های TNT
+            tnt_columns = [
+                ("tnt_plan_type", "ALTER TABLE users ADD COLUMN tnt_plan_type TEXT DEFAULT 'FREE'"),
+                ("tnt_monthly_limit", "ALTER TABLE users ADD COLUMN tnt_monthly_limit INTEGER DEFAULT 0"),
+                ("tnt_hourly_limit", "ALTER TABLE users ADD COLUMN tnt_hourly_limit INTEGER DEFAULT 0"),
+                ("tnt_plan_start", "ALTER TABLE users ADD COLUMN tnt_plan_start TIMESTAMP"),
+                ("tnt_plan_end", "ALTER TABLE users ADD COLUMN tnt_plan_end TIMESTAMP")
+            ]
+            
+            for column_name, sql in tnt_columns:
+                try:
+                    cursor.execute(sql)
+                    print(f"✅ Added {column_name} column")
+                except Exception as e:
+                    print(f"⚠️ Column {column_name}: {str(e)[:50]}")
+        
+        # ایجاد جدول tnt_usage_tracking
+        if is_postgres:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tnt_usage_tracking (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    usage_date DATE NOT NULL,
+                    usage_hour INTEGER NOT NULL,
+                    analysis_count INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id),
+                    UNIQUE(user_id, usage_date, usage_hour)
+                )
+            """)
+        else:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tnt_usage_tracking (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    usage_date DATE NOT NULL,
+                    usage_hour INTEGER NOT NULL,
+                    analysis_count INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id),
+                    UNIQUE(user_id, usage_date, usage_hour)
+                )
+            """)
+        
+        # ایجاد جدول tnt_plans
+        if is_postgres:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tnt_plans (
+                    id SERIAL PRIMARY KEY,
+                    plan_name TEXT UNIQUE NOT NULL,
+                    plan_display_name TEXT NOT NULL,
+                    price_usd DECIMAL(10,2) NOT NULL,
+                    monthly_limit INTEGER NOT NULL,
+                    hourly_limit INTEGER NOT NULL,
+                    vip_access BOOLEAN DEFAULT FALSE,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        else:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tnt_plans (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    plan_name TEXT UNIQUE NOT NULL,
+                    plan_display_name TEXT NOT NULL,
+                    price_usd REAL NOT NULL,
+                    monthly_limit INTEGER NOT NULL,
+                    hourly_limit INTEGER NOT NULL,
+                    vip_access BOOLEAN DEFAULT FALSE,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        
+        # اضافه کردن پلن‌های پیش‌فرض
+        default_plans = [
+            ('FREE', 'رایگان', 0.00, 0, 0, False),
+            ('TNT_MINI', 'TNT MINI', 10.00, 60, 2, False),
+            ('TNT_PLUS', 'TNT PLUS+', 18.00, 150, 4, False),
+            ('TNT_MAX', 'TNT MAX', 39.00, 400, 8, True)
+        ]
+        
+        for plan_name, display_name, price, monthly_limit, hourly_limit, vip_access in default_plans:
+            if is_postgres:
+                cursor.execute("""
+                    INSERT INTO tnt_plans (plan_name, plan_display_name, price_usd, monthly_limit, hourly_limit, vip_access)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (plan_name) DO NOTHING
+                """, (plan_name, display_name, price, monthly_limit, hourly_limit, vip_access))
+            else:
+                cursor.execute("""
+                    INSERT OR IGNORE INTO tnt_plans (plan_name, plan_display_name, price_usd, monthly_limit, hourly_limit, vip_access)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (plan_name, display_name, price, monthly_limit, hourly_limit, vip_access))
+        
+        conn.commit()
+        print("✅ TNT auto-migration completed successfully!")
+        
+    except Exception as e:
+        print(f"⚠️ TNT auto-migration error: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
