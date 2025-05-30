@@ -573,3 +573,157 @@ async def admin_user_tnt_info(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("❌ فرمت user_id نامعتبر است.")
     except Exception as e:
         await update.message.reply_text(f"❌ خطا در دریافت اطلاعات: {str(e)}")
+
+async def admin_clean_database(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """پاک کردن کامل دیتابیس توسط ادمین"""
+    # بررسی دسترسی ادمین
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("شما دسترسی به این دستور را ندارید.")
+        return
+
+    try:
+        # بررسی تایید
+        args = context.args
+        if not args or args[0] != "CONFIRM":
+            await update.message.reply_text(
+                "⚠️ **هشدار: این دستور تمام داده‌های دیتابیس را پاک می‌کند!**\n\n"
+                "برای تایید، دستور زیر را ارسال کنید:\n"
+                "`/cleandb CONFIRM`\n\n"
+                "**این عمل قابل بازگشت نیست!**",
+                parse_mode='Markdown'
+            )
+            return
+
+        await update.message.reply_text("🧹 شروع پاک‌سازی دیتابیس...")
+
+        from database.operations import get_connection
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        is_postgres = hasattr(conn, 'server_version')
+        
+        # شمارش کاربران قبل از پاک کردن
+        cursor.execute("SELECT COUNT(*) FROM users")
+        users_before = cursor.fetchone()[0]
+        
+        # پاک کردن جداول به ترتیب صحیح (به دلیل foreign keys)
+        tables_to_clean = [
+            "tnt_usage_tracking",
+            "api_requests", 
+            "transactions",
+            "commissions",
+            "referrals",
+            "users"
+        ]
+        
+        cleaned_tables = []
+        for table in tables_to_clean:
+            try:
+                cursor.execute(f"DELETE FROM {table}")
+                cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                remaining = cursor.fetchone()[0]
+                cleaned_tables.append(f"✅ {table}: پاک شد (باقی‌مانده: {remaining})")
+            except Exception as e:
+                cleaned_tables.append(f"⚠️ {table}: {str(e)[:50]}")
+        
+        # Reset auto increment sequences (PostgreSQL)
+        if is_postgres:
+            try:
+                reset_sequences = [
+                    "ALTER SEQUENCE users_user_id_seq RESTART WITH 1",
+                    "ALTER SEQUENCE transactions_id_seq RESTART WITH 1", 
+                    "ALTER SEQUENCE api_requests_id_seq RESTART WITH 1",
+                    "ALTER SEQUENCE tnt_usage_tracking_id_seq RESTART WITH 1",
+                    "ALTER SEQUENCE referrals_id_seq RESTART WITH 1",
+                    "ALTER SEQUENCE commissions_id_seq RESTART WITH 1"
+                ]
+                
+                for seq_sql in reset_sequences:
+                    try:
+                        cursor.execute(seq_sql)
+                        print(f"✅ Reset sequence: {seq_sql}")
+                    except Exception as e:
+                        print(f"⚠️ Sequence reset: {str(e)[:50]}")
+            except Exception as e:
+                print(f"⚠️ Sequence reset error: {e}")
+        
+        # Reset SQLite sequences
+        else:
+            try:
+                cursor.execute("DELETE FROM sqlite_sequence")
+                cleaned_tables.append("✅ sqlite_sequence: Reset auto-increment")
+            except Exception as e:
+                cleaned_tables.append(f"⚠️ sqlite_sequence: {str(e)[:50]}")
+        
+        conn.commit()
+        
+        # بررسی نهایی
+        cursor.execute("SELECT COUNT(*) FROM users")
+        users_after = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        # گزارش نتایج
+        result_message = f"🧹 **پاک‌سازی دیتابیس کامل شد**\n\n"
+        result_message += f"📊 **آمار:**\n"
+        result_message += f"• کاربران قبل: {users_before}\n"
+        result_message += f"• کاربران بعد: {users_after}\n\n"
+        result_message += f"📋 **جزئیات:**\n"
+        
+        for table_result in cleaned_tables:
+            result_message += f"{table_result}\n"
+        
+        result_message += f"\n✨ **دیتابیس آماده تست‌های جدید است!**"
+        
+        await update.message.reply_text(result_message, parse_mode='Markdown')
+        
+        # اطلاع‌رسانی عمومی
+        try:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="🔄 دیتابیس بازنشانی شد. همه کاربران حالا می‌توانند با حساب تمیز شروع کنند."
+            )
+        except:
+            pass
+            
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در پاک‌سازی دیتابیس: {str(e)}")
+
+async def admin_db_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش آمار کلی دیتابیس"""
+    if update.effective_user.id != ADMIN_ID:
+        return
+    
+    try:
+        from database.operations import get_connection
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # آمار جداول مختلف
+        tables_stats = {}
+        tables = ["users", "transactions", "api_requests", "tnt_usage_tracking", "referrals", "commissions", "tnt_plans"]
+        
+        for table in tables:
+            try:
+                cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                count = cursor.fetchone()[0]
+                tables_stats[table] = count
+            except Exception as e:
+                tables_stats[table] = f"Error: {str(e)[:30]}"
+        
+        conn.close()
+        
+        # ساخت پیام آمار
+        stats_message = "📊 **آمار کامل دیتابیس**\n\n"
+        
+        for table, count in tables_stats.items():
+            if isinstance(count, int):
+                stats_message += f"• **{table}:** {count:,} رکورد\n"
+            else:
+                stats_message += f"• **{table}:** {count}\n"
+        
+        await update.message.reply_text(stats_message, parse_mode='Markdown')
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در دریافت آمار: {str(e)}")
