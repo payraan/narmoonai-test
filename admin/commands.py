@@ -727,3 +727,33 @@ async def admin_db_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except Exception as e:
         await update.message.reply_text(f"❌ خطا در دریافت آمار: {str(e)}")
+
+async def admin_reset_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ریست ساده دیتابیس"""
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    try:
+        from database.operations import get_connection
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # شمارش قبل
+        cursor.execute("SELECT COUNT(*) FROM users")
+        before = cursor.fetchone()[0]
+        
+        # پاک کردن
+        cursor.execute("DELETE FROM tnt_usage_tracking")
+        cursor.execute("DELETE FROM api_requests")
+        cursor.execute("DELETE FROM transactions")
+        cursor.execute("DELETE FROM commissions") 
+        cursor.execute("DELETE FROM referrals")
+        cursor.execute("DELETE FROM users")
+        
+        conn.commit()
+        conn.close()
+        
+        await update.message.reply_text(f"Database reset: {before} -> 0 users")
+        
+    except Exception as e:
+        await update.message.reply_text(f"Error: {str(e)}")
