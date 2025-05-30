@@ -1,4 +1,5 @@
 import random
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from datetime import datetime
@@ -13,6 +14,42 @@ from services.ai_service import analyze_chart_images
 from utils.helpers import load_static_texts
 # بارگزاری متن‌های ثابت
 STATIC_TEXTS = load_static_texts()
+async def send_long_message(update, context, message, max_length=3500):
+    """تقسیم پیام‌های طولانی به چند بخش"""
+    if len(message) <= max_length:
+        # پیام کوتاه است، ارسال معمولی
+        await update.message.reply_text(message, parse_mode='Markdown')
+        return
+    
+    # تقسیم پیام به چند بخش
+    chunks = []
+    current_chunk = ""
+    lines = message.split('\n')
+    
+    for line in lines:
+        if len(current_chunk) + len(line) + 1 > max_length:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+                current_chunk = line + '\n'
+            else:
+                # خط خیلی طولانی است، تقسیم اجباری
+                chunks.append(line[:max_length])
+                current_chunk = line[max_length:] + '\n'
+        else:
+            current_chunk += line + '\n'
+    
+    if current_chunk.strip():
+        chunks.append(current_chunk.strip())
+    
+    # ارسال قسمت‌ها
+    for i, chunk in enumerate(chunks):
+        if i == 0:
+            header = f"📊 **تحلیل مولتی تایم فریم نارموون** (بخش {i+1}/{len(chunks)})\n\n"
+            await update.message.reply_text(header + chunk, parse_mode='Markdown')
+        else:
+            await asyncio.sleep(1.5)  # تاخیر 1.5 ثانیه
+            header = f"📊 **ادامه تحلیل** (بخش {i+1}/{len(chunks)})\n\n"
+            await update.message.reply_text(header + chunk, parse_mode='Markdown')
 
 # هندلرهای اصلی
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -382,10 +419,14 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
         summary += f"🔧 **استراتژی:** {strategy_name}\n"
         summary += f"{'═' * 30}\n\n"
         
+        # استفاده از تابع تقسیم پیام
+        full_message = summary + result
+        await send_long_message(update, context, full_message)
+
+        # ارسال دکمه منو در پیام جداگانه
         await update.message.reply_text(
-            summary + result,
-            reply_markup=menu_button,
-            parse_mode='Markdown'
+            "✅ تحلیل کامل شد!",
+            reply_markup=menu_button
         )
         
     except Exception as e:
