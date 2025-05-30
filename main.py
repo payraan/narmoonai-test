@@ -241,7 +241,12 @@ def main():
     app.add_handler(CommandHandler("userinfo", admin_user_info))
     app.add_handler(CommandHandler("stats", admin_stats))
     app.add_handler(CommandHandler("broadcast", admin_broadcast))
-
+    # دستورات مدیریتی TNT
+    from admin.commands import admin_activate_tnt, admin_tnt_stats, admin_user_tnt_info
+    app.add_handler(CommandHandler("activatetnt", admin_activate_tnt))
+    app.add_handler(CommandHandler("tntstats", admin_tnt_stats))
+    app.add_handler(CommandHandler("usertnt", admin_user_tnt_info))
+    
     print("🤖 ربات نارموون آماده است!")
     print(f"✅ توکن: {TELEGRAM_TOKEN[:10]}...")
     print("📊 برای توقف: Ctrl+C")

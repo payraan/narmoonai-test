@@ -358,20 +358,108 @@ async def handle_strategy_selection(update: Update, context: ContextTypes.DEFAUL
 
 async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """دریافت تصاویر چارت از کاربر"""
-    # بررسی اشتراک کاربر
+    # بررسی محدودیت TNT کاربر
     user_id = update.effective_user.id
-    if not check_subscription(user_id):
-        subscription_buttons = [
-            [InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription")],
-            [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
-        ]
-        
-        await update.message.reply_text(
-            "⚠️ اشتراک شما منقضی شده یا فعال نیست. لطفاً اشتراک خود را تمدید کنید.",
-            reply_markup=InlineKeyboardMarkup(subscription_buttons)
-        )
-        return MAIN_MENU
     
+    # Import توابع جدید TNT
+    from database.operations import check_tnt_analysis_limit, record_tnt_analysis_usage
+    
+    # بررسی محدودیت
+    limit_check = check_tnt_analysis_limit(user_id)
+    
+    if not limit_check["allowed"]:
+        # تعیین نوع پیام خطا
+        reason = limit_check.get("reason", "unknown")
+        message = limit_check.get("message", "خطا در بررسی محدودیت")
+        
+        if reason == "plan_required":
+            # نیاز به اشتراک
+            subscription_buttons = [
+                [InlineKeyboardButton("💳 خرید اشتراک TNT", callback_data="subscription")],
+                [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
+            ]
+            
+            await update.message.reply_text(
+                "⚠️ **دسترسی محدود**\n\n"
+                "برای استفاده از تحلیل هوش مصنوعی TNT نیاز به اشتراک دارید.\n\n"
+                "🔸 **پلن‌های موجود:**\n"
+                "• TNT MINI: $10/ماه (60 تحلیل)\n"
+                "• TNT PLUS+: $18/ماه (150 تحلیل)\n"
+                "• TNT MAX: $39/ماه (400 تحلیل + گروه VIP)",
+                reply_markup=InlineKeyboardMarkup(subscription_buttons),
+                parse_mode='Markdown'
+            )
+            return MAIN_MENU
+            
+        elif reason == "plan_expired":
+            # اشتراک منقضی
+            subscription_buttons = [
+                [InlineKeyboardButton("🔄 تمدید اشتراک", callback_data="subscription")],
+                [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
+            ]
+            
+            await update.message.reply_text(
+                "⏰ **اشتراک منقضی شده**\n\n"
+                f"{message}\n\n"
+                "برای ادامه استفاده از تحلیل TNT، اشتراک خود را تمدید کنید.",
+                reply_markup=InlineKeyboardMarkup(subscription_buttons),
+                parse_mode='Markdown'
+            )
+            return MAIN_MENU
+            
+        elif reason == "monthly_limit":
+            # سقف ماهانه
+            usage = limit_check.get("usage", 0)
+            limit = limit_check.get("limit", 0)
+            
+            subscription_buttons = [
+                [InlineKeyboardButton("⬆️ ارتقا پلن", callback_data="subscription")],
+                [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
+            ]
+            
+            await update.message.reply_text(
+                "📊 **سقف ماهانه به پایان رسید**\n\n"
+                f"استفاده شده: {usage}/{limit} تحلیل\n\n"
+                "💡 برای تحلیل بیشتر می‌توانید:\n"
+                "• پلن خود را ارتقا دهید\n"
+                "• تا ماه آینده صبر کنید",
+                reply_markup=InlineKeyboardMarkup(subscription_buttons),
+                parse_mode='Markdown'
+            )
+            return MAIN_MENU
+            
+        elif reason == "hourly_limit":
+            # سقف ساعتی
+            usage = limit_check.get("usage", 0)
+            limit = limit_check.get("limit", 0)
+            
+            back_button = [
+                [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
+            ]
+            
+            await update.message.reply_text(
+                "⏱️ **سقف ساعتی به پایان رسید**\n\n"
+                f"استفاده شده: {usage}/{limit} تحلیل در این ساعت\n\n"
+                "⏰ لطفاً یک ساعت دیگر دوباره تلاش کنید.\n\n"
+                "💡 برای حد ساعتی بیشتر، پلن خود را ارتقا دهید.",
+                reply_markup=InlineKeyboardMarkup(back_button),
+                parse_mode='Markdown'
+            )
+            return MAIN_MENU
+        
+        else:
+            # خطای عمومی
+            back_button = [
+                [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
+            ]
+            
+            await update.message.reply_text(
+                f"❌ {message}",
+                reply_markup=InlineKeyboardMarkup(back_button)
+            )
+            return MAIN_MENU
+    
+    # اگر همه چیز OK بود، ادامه پردازش تصویر
     file = None
     ext = "jpeg"
     
@@ -392,13 +480,26 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
     expected = 3
     
     if received < expected:
-        await update.message.reply_text(f"عالی! {expected-received} عکس دیگه از تایم‌فریم‌های بعدی رو بفرست 🤩")
+        # نمایش پیشرفت به همراه آمار باقی‌مانده
+        remaining_monthly = limit_check.get("remaining_monthly", "نامشخص")
+        remaining_hourly = limit_check.get("remaining_hourly", "نامشخص")
+        
+        progress_message = f"عالی! {expected-received} عکس دیگه از تایم‌فریم‌های بعدی رو بفرست 🤩\n\n"
+        progress_message += f"📊 باقی‌مانده ماهانه: {remaining_monthly} تحلیل\n"
+        progress_message += f"⏰ باقی‌مانده ساعتی: {remaining_hourly} تحلیل"
+        
+        await update.message.reply_text(progress_message)
         return WAITING_IMAGES
     
     # وقتی هر سه عکس رسید...
     await update.message.reply_text("🔥 در حال تحلیل نمودارها با استراتژی انتخابی شما... ⏳")
     
     try:
+        # ثبت استفاده قبل از تحلیل
+        record_success = record_tnt_analysis_usage(user_id)
+        if not record_success:
+            print(f"⚠️ Warning: Failed to record usage for user {user_id}")
+        
         # استفاده از پرامپت اختصاصی استراتژی انتخابی
         strategy_prompt = context.user_data.get('strategy_prompt')
         result = analyze_chart_images(context.user_data['received_images'], strategy_prompt)
@@ -417,6 +518,13 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
         summary += f"🎯 **بازار:** {market_name}\n"
         summary += f"⏰ **تایم‌فریم:** {selected_timeframe}\n"
         summary += f"🔧 **استراتژی:** {strategy_name}\n"
+        
+        # اضافه کردن آمار استفاده
+        updated_limit_check = check_tnt_analysis_limit(user_id)
+        if updated_limit_check["allowed"]:
+            summary += f"📈 **باقی‌مانده ماهانه:** {updated_limit_check.get('remaining_monthly', 'نامشخص')} تحلیل\n"
+            summary += f"⏱️ **باقی‌مانده ساعتی:** {updated_limit_check.get('remaining_hourly', 'نامشخص')} تحلیل\n"
+        
         summary += f"{'═' * 30}\n\n"
         
         # استفاده از تابع تقسیم پیام

@@ -265,3 +265,311 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except Exception as e:
         await update.message.reply_text(f"خطا در ارسال پیام: {str(e)}")
+
+async def admin_activate_tnt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """فعال‌سازی اشتراک TNT توسط ادمین"""
+    # بررسی دسترسی ادمین
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("شما دسترسی به این دستور را ندارید.")
+        return
+
+    try:
+        # بررسی پارامترها
+        args = context.args
+        if len(args) < 3:
+            await update.message.reply_text(
+                "فرمت صحیح: /activatetnt user_id plan_name duration\n\n"
+                "پلن‌های موجود:\n"
+                "• TNT_MINI: $10 (60 تحلیل/ماه، 2 تحلیل/ساعت)\n"
+                "• TNT_PLUS: $18 (150 تحلیل/ماه، 4 تحلیل/ساعت)\n"
+                "• TNT_MAX: $39 (400 تحلیل/ماه، 8 تحلیل/ساعت + VIP)\n\n"
+                "مثال: /activatetnt 123456789 TNT_MINI 1"
+            )
+            return
+
+        user_id = int(args[0])
+        plan_name = args[1].upper()
+        duration = int(args[2])
+
+        # اطمینان از وجود کاربر
+        from database.operations import register_user, activate_tnt_subscription
+        register_user(user_id, f"admin_user_{user_id}")
+
+        # فعال‌سازی اشتراک TNT
+        result = activate_tnt_subscription(user_id, plan_name, duration)
+
+        if result["success"]:
+            # محاسبه کمیسیون رفرال (همان کد قبلی)
+            from database.operations import get_connection, calculate_commission
+            
+            try:
+                conn = get_connection()
+                cursor = conn.cursor()
+                is_postgres = hasattr(conn, 'server_version')
+                
+                # پیدا کردن referrer برای این کاربر
+                if is_postgres:
+                    cursor.execute("SELECT referrer_id FROM referrals WHERE referred_id = %s", (user_id,))
+                else:
+                    cursor.execute("SELECT referrer_id FROM referrals WHERE referred_id = ?", (user_id,))
+                
+                referrer = cursor.fetchone()
+                conn.close()
+                
+                if referrer:
+                    referrer_id = referrer[0]
+                    print(f"🔍 Found referrer {referrer_id} for user {user_id}")
+                    
+                    # محاسبه کمیسیون
+                    commission_result = calculate_commission(referrer_id, user_id, plan_name, None)
+                    
+                    if commission_result.get("success"):
+                        commission_amount = commission_result.get("total_amount", 0)
+                        successful_referrals = commission_result.get("successful_referrals", 0)
+                        
+                        # اطلاع به ادمین
+                        await update.message.reply_text(
+                            f"💰 کمیسیون رفرال محاسبه شد!\n"
+                            f"👤 رفرردهنده: {referrer_id}\n"
+                            f"💵 مبلغ کمیسیون: ${commission_amount:.2f}\n"
+                            f"📊 تعداد رفرال‌های موفق: {successful_referrals}"
+                        )
+                        
+                        print(f"✅ Commission calculated: Referrer {referrer_id} -> User {user_id}: ${commission_amount}")
+                    else:
+                        error_msg = commission_result.get("error", "Unknown error")
+                        print(f"❌ Commission calculation failed: {error_msg}")
+                        await update.message.reply_text(f"⚠️ خطا در محاسبه کمیسیون: {error_msg}")
+                else:
+                    print(f"ℹ️ No referral relationship found for user {user_id}")
+                    
+            except Exception as commission_error:
+                print(f"❌ Commission calculation error: {commission_error}")
+                await update.message.reply_text(f"⚠️ خطا در بررسی رفرال: {str(commission_error)}")
+
+            # پیام موفقیت ادمین
+            await update.message.reply_text(
+                f"✅ اشتراک TNT کاربر {user_id} فعال شد\n\n"
+                f"📋 جزئیات:\n"
+                f"• پلن: {result['plan_display']}\n"
+                f"• سقف ماهانه: {result['monthly_limit']} تحلیل\n"
+                f"• سقف ساعتی: {result['hourly_limit']} تحلیل\n"
+                f"• شروع: {result['start_date']}\n"
+                f"• پایان: {result['end_date']}\n"
+                f"• VIP Access: {'✅' if result['vip_access'] else '❌'}"
+            )
+
+            # ارسال پیام به کاربر
+            try:
+                vip_text = ""
+                if result['vip_access']:
+                    vip_text = "\n🎖️ **VIP Access:** دسترسی به گروه ویژه TNT MAX"
+
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=f"🎉 **اشتراک TNT شما فعال شد!**\n\n"
+                         f"🔹 **پلن:** {result['plan_display']}\n"
+                         f"📊 **سقف ماهانه:** {result['monthly_limit']} تحلیل\n"
+                         f"⏰ **سقف ساعتی:** {result['hourly_limit']} تحلیل\n"
+                         f"📅 **تاریخ پایان:** {result['end_date']}\n"
+                         f"{vip_text}\n\n"
+                         f"✨ حالا می‌توانید از تحلیل هوش مصنوعی TNT استفاده کنید!\n"
+                         f"برای شروع دستور /start را بزنید.",
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                await update.message.reply_text(
+                    f"اشتراک فعال شد اما ارسال پیام به کاربر با خطا مواجه شد: {str(e)}"
+                )
+        else:
+            await update.message.reply_text(f"❌ خطا در فعال‌سازی: {result['error']}")
+
+    except ValueError:
+        await update.message.reply_text("❌ فرمت user_id یا duration نامعتبر است.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در فعال‌سازی اشتراک TNT: {str(e)}")
+
+async def admin_tnt_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش آمار TNT برای ادمین"""
+    if update.effective_user.id != ADMIN_ID:
+        return
+    
+    from database.operations import get_connection
+    from datetime import datetime, date
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        is_postgres = hasattr(conn, 'server_version')
+        
+        # آمار کلی پلن‌ها
+        if is_postgres:
+            cursor.execute("""
+                SELECT tnt_plan_type, COUNT(*) as count
+                FROM users 
+                WHERE tnt_plan_type IS NOT NULL
+                GROUP BY tnt_plan_type
+                ORDER BY count DESC
+            """)
+        else:
+            cursor.execute("""
+                SELECT tnt_plan_type, COUNT(*) as count
+                FROM users 
+                WHERE tnt_plan_type IS NOT NULL
+                GROUP BY tnt_plan_type
+                ORDER BY count DESC
+            """)
+        
+        plan_stats = cursor.fetchall()
+        
+        # آمار استفاده امروز
+        today = date.today()
+        if is_postgres:
+            cursor.execute("""
+                SELECT COUNT(DISTINCT user_id) as active_users,
+                       SUM(analysis_count) as total_analyses
+                FROM tnt_usage_tracking 
+                WHERE usage_date = %s
+            """, (today,))
+        else:
+            cursor.execute("""
+                SELECT COUNT(DISTINCT user_id) as active_users,
+                       SUM(analysis_count) as total_analyses
+                FROM tnt_usage_tracking 
+                WHERE usage_date = ?
+            """, (today.isoformat(),))
+        
+        usage_today = cursor.fetchone()
+        active_users_today = usage_today[0] or 0
+        total_analyses_today = usage_today[1] or 0
+        
+        # آمار استفاده ماه جاری
+        start_of_month = date(today.year, today.month, 1)
+        if is_postgres:
+            cursor.execute("""
+                SELECT COUNT(DISTINCT user_id) as monthly_users,
+                       SUM(analysis_count) as monthly_analyses
+                FROM tnt_usage_tracking 
+                WHERE usage_date >= %s
+            """, (start_of_month,))
+        else:
+            cursor.execute("""
+                SELECT COUNT(DISTINCT user_id) as monthly_users,
+                       SUM(analysis_count) as monthly_analyses
+                FROM tnt_usage_tracking 
+                WHERE usage_date >= ?
+            """, (start_of_month.isoformat(),))
+        
+        usage_monthly = cursor.fetchone()
+        monthly_users = usage_monthly[0] or 0
+        monthly_analyses = usage_monthly[1] or 0
+        
+        # پربازدیدترین کاربران
+        if is_postgres:
+            cursor.execute("""
+                SELECT u.user_id, u.username, u.tnt_plan_type, 
+                       SUM(t.analysis_count) as total_usage
+                FROM users u
+                JOIN tnt_usage_tracking t ON u.user_id = t.user_id
+                WHERE t.usage_date >= %s
+                GROUP BY u.user_id, u.username, u.tnt_plan_type
+                ORDER BY total_usage DESC
+                LIMIT 10
+            """, (start_of_month,))
+        else:
+            cursor.execute("""
+                SELECT u.user_id, u.username, u.tnt_plan_type, 
+                       SUM(t.analysis_count) as total_usage
+                FROM users u
+                JOIN tnt_usage_tracking t ON u.user_id = t.user_id
+                WHERE t.usage_date >= ?
+                GROUP BY u.user_id, u.username, u.tnt_plan_type
+                ORDER BY total_usage DESC
+                LIMIT 10
+            """, (start_of_month.isoformat(),))
+        
+        top_users = cursor.fetchall()
+        
+        conn.close()
+        
+        # ساخت پیام آمار
+        stats_message = f"""📊 **آمار TNT سیستم**
+
+📈 **آمار پلن‌ها:**
+"""
+        
+        for plan_type, count in plan_stats:
+            stats_message += f"• {plan_type}: {count} کاربر\n"
+        
+        stats_message += f"""
+🔥 **فعالیت امروز:**
+• کاربران فعال: {active_users_today}
+• تحلیل‌های انجام شده: {total_analyses_today}
+
+📅 **فعالیت ماه جاری:**
+• کاربران فعال: {monthly_users}
+• کل تحلیل‌ها: {monthly_analyses}
+
+👑 **فعال‌ترین کاربران (ماه جاری):**
+"""
+        
+        for i, (user_id, username, plan_type, usage) in enumerate(top_users[:5], 1):
+            username_display = username or f"User_{user_id}"
+            stats_message += f"{i}. {username_display} ({plan_type}): {usage} تحلیل\n"
+        
+        await update.message.reply_text(stats_message, parse_mode='Markdown')
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در دریافت آمار TNT: {str(e)}")
+
+async def admin_user_tnt_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش اطلاعات TNT کاربر خاص"""
+    if update.effective_user.id != ADMIN_ID:
+        return
+    
+    try:
+        args = context.args
+        if not args:
+            await update.message.reply_text(
+                "فرمت صحیح: /usertnt user_id\n"
+                "مثال: /usertnt 123456789"
+            )
+            return
+        
+        user_id = int(args[0])
+        
+        from database.operations import get_user_tnt_usage_stats
+        
+        # دریافت آمار کامل
+        stats = get_user_tnt_usage_stats(user_id)
+        
+        if not stats:
+            await update.message.reply_text(f"کاربر {user_id} یافت نشد یا خطا در دریافت اطلاعات.")
+            return
+        
+        plan_info = stats["plan_info"]
+        
+        info_message = f"""👤 **اطلاعات TNT کاربر {user_id}**
+
+📋 **پلن فعلی:**
+• نوع: {plan_info['plan_type']}
+• سقف ماهانه: {plan_info['monthly_limit']} تحلیل
+• سقف ساعتی: {plan_info['hourly_limit']} تحلیل
+• وضعیت: {'✅ فعال' if plan_info['plan_active'] else '❌ غیرفعال'}
+• تاریخ پایان: {plan_info.get('plan_end', 'نامشخص')}
+
+📊 **استفاده فعلی:**
+• مصرف ماهانه: {stats['monthly_usage']}/{plan_info['monthly_limit']} ({stats['monthly_percentage']:.1f}%)
+• مصرف ساعتی: {stats['hourly_usage']}/{plan_info['hourly_limit']} ({stats['hourly_percentage']:.1f}%)
+
+⏰ **باقی‌مانده:**
+• ماهانه: {stats['monthly_remaining']} تحلیل
+• ساعتی: {stats['hourly_remaining']} تحلیل
+"""
+        
+        await update.message.reply_text(info_message, parse_mode='Markdown')
+        
+    except ValueError:
+        await update.message.reply_text("❌ فرمت user_id نامعتبر است.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در دریافت اطلاعات: {str(e)}")

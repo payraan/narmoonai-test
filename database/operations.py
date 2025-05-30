@@ -916,3 +916,487 @@ def update_referral_setting(key, value):
     conn.close()
     
     return {"success": True, "message": f"تنظیم {key} به {value} تغییر یافت"}
+
+# === TNT PLANS & LIMIT MANAGEMENT ===
+
+def get_tnt_plan_info(plan_name: str):
+    """دریافت اطلاعات پلن TNT"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        if is_postgres:
+            cursor.execute("""
+                SELECT plan_name, plan_display_name, price_usd, monthly_limit, 
+                       hourly_limit, vip_access, is_active
+                FROM tnt_plans 
+                WHERE plan_name = %s AND is_active = true
+            """, (plan_name,))
+        else:
+            cursor.execute("""
+                SELECT plan_name, plan_display_name, price_usd, monthly_limit, 
+                       hourly_limit, vip_access, is_active
+                FROM tnt_plans 
+                WHERE plan_name = ? AND is_active = 1
+            """, (plan_name,))
+        
+        plan_data = cursor.fetchone()
+        conn.close()
+        
+        if plan_data:
+            return {
+                "plan_name": plan_data[0],
+                "display_name": plan_data[1],
+                "price_usd": float(plan_data[2]),
+                "monthly_limit": plan_data[3],
+                "hourly_limit": plan_data[4],
+                "vip_access": bool(plan_data[5]),
+                "is_active": bool(plan_data[6])
+            }
+        
+        return None
+        
+    except Exception as e:
+        conn.close()
+        print(f"Error getting TNT plan info: {e}")
+        return None
+
+def get_user_tnt_plan(user_id: int):
+    """دریافت پلن TNT کاربر"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        if is_postgres:
+            cursor.execute("""
+                SELECT tnt_plan_type, tnt_plan_start, tnt_plan_end, 
+                       tnt_monthly_limit, tnt_hourly_limit
+                FROM users 
+                WHERE user_id = %s
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT tnt_plan_type, tnt_plan_start, tnt_plan_end, 
+                       tnt_monthly_limit, tnt_hourly_limit
+                FROM users 
+                WHERE user_id = ?
+            """, (user_id,))
+        
+        user_data = cursor.fetchone()
+        conn.close()
+        
+        if user_data:
+            plan_type, plan_start, plan_end, monthly_limit, hourly_limit = user_data
+            
+            # بررسی انقضای پلن - اصلاح شده
+            plan_active = False
+            expired = False
+            
+            if plan_end and plan_type != "FREE":
+                try:
+                    from datetime import datetime
+                    # پردازش مناسب datetime string
+                    if isinstance(plan_end, str):
+                        # برای SQLite که datetime را string ذخیره می‌کند
+                        end_date = datetime.fromisoformat(plan_end.replace('Z', '').replace('+00:00', ''))
+                    else:
+                        # برای PostgreSQL که datetime object دارد
+                        end_date = plan_end
+                    
+                    now = datetime.now()
+                    
+                    if now > end_date:
+                        # پلن منقضی شده - به FREE تبدیل کن
+                        expired = True
+                        reset_user_to_free_plan(user_id)
+                        return {
+                            "plan_type": "FREE",
+                            "monthly_limit": 0,
+                            "hourly_limit": 0,
+                            "plan_active": False,
+                            "expired": True
+                        }
+                    else:
+                        plan_active = True
+                        
+                except Exception as e:
+                    print(f"Error parsing plan_end date: {e}")
+                    # در صورت خطا، پلن را فعال در نظر بگیر
+                    plan_active = True
+            
+            return {
+                "plan_type": plan_type or "FREE",
+                "monthly_limit": monthly_limit or 0,
+                "hourly_limit": hourly_limit or 0,
+                "plan_start": plan_start,
+                "plan_end": plan_end,
+                "plan_active": plan_active,
+                "expired": expired
+            }
+        
+        # کاربر جدید - پلن FREE
+        return {
+            "plan_type": "FREE",
+            "monthly_limit": 0,
+            "hourly_limit": 0,
+            "plan_active": False,
+            "expired": False
+        }
+        
+    except Exception as e:
+        conn.close()
+        print(f"Error getting user TNT plan: {e}")
+        return None
+
+def check_tnt_analysis_limit(user_id: int):
+    """بررسی محدودیت تحلیل TNT کاربر"""
+    from datetime import datetime, date
+    
+    # دریافت پلن کاربر
+    user_plan = get_user_tnt_plan(user_id)
+    if not user_plan:
+        return {"allowed": False, "reason": "خطا در دریافت اطلاعات کاربر"}
+    
+    # اگر پلن FREE است
+    if user_plan["plan_type"] == "FREE":
+        return {"allowed": False, "reason": "plan_required", "message": "برای استفاده از تحلیل TNT نیاز به اشتراک دارید"}
+    
+    # اگر پلن منقضی شده
+    if user_plan["expired"] or not user_plan["plan_active"]:
+        return {"allowed": False, "reason": "plan_expired", "message": "اشتراک شما منقضی شده است"}
+    
+    # بررسی محدودیت ماهانه
+    monthly_usage = get_user_monthly_usage(user_id)
+    if monthly_usage >= user_plan["monthly_limit"]:
+        return {
+            "allowed": False, 
+            "reason": "monthly_limit", 
+            "message": f"سقف ماهانه شما ({user_plan['monthly_limit']} تحلیل) تمام شده است",
+            "usage": monthly_usage,
+            "limit": user_plan["monthly_limit"]
+        }
+    
+    # بررسی محدودیت ساعتی
+    hourly_usage = get_user_hourly_usage(user_id)
+    if hourly_usage >= user_plan["hourly_limit"]:
+        return {
+            "allowed": False,
+            "reason": "hourly_limit", 
+            "message": f"سقف ساعتی شما ({user_plan['hourly_limit']} تحلیل) تمام شده است",
+            "usage": hourly_usage,
+            "limit": user_plan["hourly_limit"]
+        }
+    
+    # همه چیز OK
+    return {
+        "allowed": True,
+        "monthly_usage": monthly_usage,
+        "monthly_limit": user_plan["monthly_limit"],
+        "hourly_usage": hourly_usage,
+        "hourly_limit": user_plan["hourly_limit"],
+        "remaining_monthly": user_plan["monthly_limit"] - monthly_usage,
+        "remaining_hourly": user_plan["hourly_limit"] - hourly_usage
+    }
+
+def get_user_monthly_usage(user_id: int):
+    """دریافت تعداد استفاده ماهانه کاربر"""
+    from datetime import datetime, date
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        # محاسبه ابتدای ماه جاری
+        now = datetime.now()
+        start_of_month = date(now.year, now.month, 1)
+        
+        if is_postgres:
+            cursor.execute("""
+                SELECT COALESCE(SUM(analysis_count), 0) 
+                FROM tnt_usage_tracking 
+                WHERE user_id = %s AND usage_date >= %s
+            """, (user_id, start_of_month))
+        else:
+            cursor.execute("""
+                SELECT COALESCE(SUM(analysis_count), 0) 
+                FROM tnt_usage_tracking 
+                WHERE user_id = ? AND usage_date >= ?
+            """, (user_id, start_of_month.isoformat()))
+        
+        monthly_usage = cursor.fetchone()[0]
+        conn.close()
+        
+        return int(monthly_usage)
+        
+    except Exception as e:
+        conn.close()
+        print(f"Error getting monthly usage: {e}")
+        return 0
+
+def get_user_hourly_usage(user_id: int):
+    """دریافت تعداد استفاده ساعت جاری کاربر"""
+    from datetime import datetime, date
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        # ساعت و تاریخ جاری
+        now = datetime.now()
+        current_date = now.date()
+        current_hour = now.hour
+        
+        if is_postgres:
+            cursor.execute("""
+                SELECT COALESCE(analysis_count, 0) 
+                FROM tnt_usage_tracking 
+                WHERE user_id = %s AND usage_date = %s AND usage_hour = %s
+            """, (user_id, current_date, current_hour))
+        else:
+            cursor.execute("""
+                SELECT COALESCE(analysis_count, 0) 
+                FROM tnt_usage_tracking 
+                WHERE user_id = ? AND usage_date = ? AND usage_hour = ?
+            """, (user_id, current_date.isoformat(), current_hour))
+        
+        result = cursor.fetchone()
+        hourly_usage = result[0] if result else 0
+        conn.close()
+        
+        return int(hourly_usage)
+        
+    except Exception as e:
+        conn.close()
+        print(f"Error getting hourly usage: {e}")
+        return 0
+
+def record_tnt_analysis_usage(user_id: int):
+    """ثبت استفاده از تحلیل TNT"""
+    from datetime import datetime, date
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        # ساعت و تاریخ جاری
+        now = datetime.now()
+        current_date = now.date()
+        current_hour = now.hour
+        
+        if is_postgres:
+            # PostgreSQL: INSERT ... ON CONFLICT
+            cursor.execute("""
+                INSERT INTO tnt_usage_tracking (user_id, usage_date, usage_hour, analysis_count)
+                VALUES (%s, %s, %s, 1)
+                ON CONFLICT (user_id, usage_date, usage_hour) 
+                DO UPDATE SET 
+                    analysis_count = tnt_usage_tracking.analysis_count + 1,
+                    created_at = CURRENT_TIMESTAMP
+            """, (user_id, current_date, current_hour))
+        else:
+            # SQLite: INSERT OR REPLACE
+            # ابتدا چک کن آیا رکورد وجود دارد
+            cursor.execute("""
+                SELECT analysis_count FROM tnt_usage_tracking 
+                WHERE user_id = ? AND usage_date = ? AND usage_hour = ?
+            """, (user_id, current_date.isoformat(), current_hour))
+            
+            existing = cursor.fetchone()
+            
+            if existing:
+                # اپدیت رکورد موجود
+                cursor.execute("""
+                    UPDATE tnt_usage_tracking 
+                    SET analysis_count = analysis_count + 1, created_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND usage_date = ? AND usage_hour = ?
+                """, (user_id, current_date.isoformat(), current_hour))
+            else:
+                # رکورد جدید
+                cursor.execute("""
+                    INSERT INTO tnt_usage_tracking (user_id, usage_date, usage_hour, analysis_count)
+                    VALUES (?, ?, ?, 1)
+                """, (user_id, current_date.isoformat(), current_hour))
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"✅ Recorded TNT analysis usage for user {user_id} at {current_date} {current_hour}:00")
+        return True
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        print(f"Error recording TNT usage: {e}")
+        return False
+
+def activate_tnt_subscription(user_id: int, plan_name: str, duration_months: int = 1):
+    """فعال‌سازی اشتراک TNT کاربر"""
+    from datetime import datetime, timedelta
+    
+    # دریافت اطلاعات پلن
+    plan_info = get_tnt_plan_info(plan_name)
+    if not plan_info:
+        return {"success": False, "error": f"پلن {plan_name} یافت نشد"}
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        # محاسبه تاریخ شروع و پایان
+        start_date = datetime.now()
+        end_date = start_date + timedelta(days=30 * duration_months)
+        
+        if is_postgres:
+            cursor.execute("""
+                UPDATE users 
+                SET tnt_plan_type = %s,
+                    tnt_monthly_limit = %s,
+                    tnt_hourly_limit = %s,
+                    tnt_plan_start = %s,
+                    tnt_plan_end = %s,
+                    is_active = true
+                WHERE user_id = %s
+            """, (plan_name, plan_info["monthly_limit"], plan_info["hourly_limit"], 
+                  start_date, end_date, user_id))
+        else:
+            cursor.execute("""
+                UPDATE users 
+                SET tnt_plan_type = ?,
+                    tnt_monthly_limit = ?,
+                    tnt_hourly_limit = ?,
+                    tnt_plan_start = ?,
+                    tnt_plan_end = ?,
+                    is_active = 1
+                WHERE user_id = ?
+            """, (plan_name, plan_info["monthly_limit"], plan_info["hourly_limit"], 
+                  start_date.isoformat(), end_date.isoformat(), user_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            "success": True,
+            "plan_name": plan_name,
+            "plan_display": plan_info["display_name"],
+            "monthly_limit": plan_info["monthly_limit"],
+            "hourly_limit": plan_info["hourly_limit"],
+            "start_date": start_date.strftime('%Y-%m-%d'),
+            "end_date": end_date.strftime('%Y-%m-%d'),
+            "vip_access": plan_info["vip_access"]
+        }
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return {"success": False, "error": f"خطا در فعال‌سازی اشتراک: {str(e)}"}
+
+def reset_user_to_free_plan(user_id: int):
+    """بازگردانی کاربر به پلن رایگان"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        if is_postgres:
+            cursor.execute("""
+                UPDATE users 
+                SET tnt_plan_type = 'FREE',
+                    tnt_monthly_limit = 0,
+                    tnt_hourly_limit = 0,
+                    tnt_plan_start = NULL,
+                    tnt_plan_end = NULL,
+                    is_active = false
+                WHERE user_id = %s
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                UPDATE users 
+                SET tnt_plan_type = 'FREE',
+                    tnt_monthly_limit = 0,
+                    tnt_hourly_limit = 0,
+                    tnt_plan_start = NULL,
+                    tnt_plan_end = NULL,
+                    is_active = 0
+                WHERE user_id = ?
+            """, (user_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"✅ User {user_id} reset to FREE plan")
+        return True
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        print(f"Error resetting user to free plan: {e}")
+        return False
+
+def get_all_tnt_plans():
+    """دریافت لیست تمام پلن‌های TNT فعال"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    is_postgres = hasattr(conn, 'server_version')
+    
+    try:
+        if is_postgres:
+            cursor.execute("""
+                SELECT plan_name, plan_display_name, price_usd, monthly_limit, 
+                       hourly_limit, vip_access
+                FROM tnt_plans 
+                WHERE is_active = true
+                ORDER BY price_usd ASC
+            """)
+        else:
+            cursor.execute("""
+                SELECT plan_name, plan_display_name, price_usd, monthly_limit, 
+                       hourly_limit, vip_access
+                FROM tnt_plans 
+                WHERE is_active = 1
+                ORDER BY price_usd ASC
+            """)
+        
+        plans = cursor.fetchall()
+        conn.close()
+        
+        return [
+            {
+                "plan_name": plan[0],
+                "display_name": plan[1],
+                "price_usd": float(plan[2]),
+                "monthly_limit": plan[3],
+                "hourly_limit": plan[4],
+                "vip_access": bool(plan[5])
+            }
+            for plan in plans
+        ]
+        
+    except Exception as e:
+        conn.close()
+        print(f"Error getting TNT plans: {e}")
+        return []
+
+def get_user_tnt_usage_stats(user_id: int):
+    """دریافت آمار کامل استفاده TNT کاربر"""
+    user_plan = get_user_tnt_plan(user_id)
+    if not user_plan:
+        return None
+    
+    monthly_usage = get_user_monthly_usage(user_id)
+    hourly_usage = get_user_hourly_usage(user_id)
+    
+    return {
+        "plan_info": user_plan,
+        "monthly_usage": monthly_usage,
+        "hourly_usage": hourly_usage,
+        "monthly_remaining": max(0, user_plan["monthly_limit"] - monthly_usage),
+        "hourly_remaining": max(0, user_plan["hourly_limit"] - hourly_usage),
+        "monthly_percentage": (monthly_usage / user_plan["monthly_limit"] * 100) if user_plan["monthly_limit"] > 0 else 0,
+        "hourly_percentage": (hourly_usage / user_plan["hourly_limit"] * 100) if user_plan["hourly_limit"] > 0 else 0
+    }
