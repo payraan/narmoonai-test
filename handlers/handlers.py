@@ -196,9 +196,9 @@ async def show_market_selection(update: Update, context: ContextTypes.DEFAULT_TY
     """نمایش لیست بازارها برای انتخاب"""
    
     market_buttons = [
-        [InlineKeyboardButton("🪙 رمزارزها)", callback_data="market_crypto")],
+        [InlineKeyboardButton("🪙 رمزارزها", callback_data="market_crypto")],
         [
-            InlineKeyboardButton("💱 فارکس)", callback_data="market_forex"),
+            InlineKeyboardButton("💱 فارکس", callback_data="market_forex"),
             InlineKeyboardButton("🥇 طلا", callback_data="market_gold")
         ],
         [
