@@ -375,7 +375,6 @@ async def admin_activate_tnt(update: Update, context: ContextTypes.DEFAULT_TYPE)
                          f"{vip_text}\n\n"
                          f"✨ حالا می‌توانید از تحلیل هوش مصنوعی TNT استفاده کنید!\n"
                          f"برای شروع دستور /start را بزنید.",
-                    parse_mode='Markdown'
                 )
             except Exception as e:
                 await update.message.reply_text(
@@ -517,7 +516,7 @@ async def admin_tnt_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             username_display = username or f"User_{user_id}"
             stats_message += f"{i}. {username_display} ({plan_type}): {usage} تحلیل\n"
         
-        await update.message.reply_text(stats_message, parse_mode='Markdown')
+        await update.message.reply_text(stats_message)
         
     except Exception as e:
         await update.message.reply_text(f"❌ خطا در دریافت آمار TNT: {str(e)}")
@@ -567,7 +566,7 @@ async def admin_user_tnt_info(update: Update, context: ContextTypes.DEFAULT_TYPE
 • ساعتی: {stats['hourly_remaining']} تحلیل
 """
         
-        await update.message.reply_text(info_message, parse_mode='Markdown')
+        await update.message.reply_text(info_message)
         
     except ValueError:
         await update.message.reply_text("❌ فرمت user_id نامعتبر است.")
@@ -590,7 +589,6 @@ async def admin_clean_database(update: Update, context: ContextTypes.DEFAULT_TYP
                 "برای تایید، دستور زیر را ارسال کنید:\n"
                 "`/cleandb CONFIRM`\n\n"
                 "**این عمل قابل بازگشت نیست!**",
-                parse_mode='Markdown'
             )
             return
 
@@ -675,7 +673,7 @@ async def admin_clean_database(update: Update, context: ContextTypes.DEFAULT_TYP
         
         result_message += f"\n✨ **دیتابیس آماده تست‌های جدید است!**"
         
-        await update.message.reply_text(result_message, parse_mode='Markdown')
+        await update.message.reply_text(result_message)
         
         # اطلاع‌رسانی عمومی
         try:
@@ -723,7 +721,7 @@ async def admin_db_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 stats_message += f"• **{table}:** {count}\n"
         
-        await update.message.reply_text(stats_message, parse_mode='Markdown')
+        await update.message.reply_text(stats_message)
         
     except Exception as e:
         await update.message.reply_text(f"❌ خطا در دریافت آمار: {str(e)}")
