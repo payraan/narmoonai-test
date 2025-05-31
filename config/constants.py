@@ -41,37 +41,11 @@ EXPECTED_TIMEFRAMES = {
 STRATEGIES = {
     # دسته اول: استراتژی های شخصی
     'narmoon_ai': '🤖 استراتژی شخصی هوش مصنوعی نارموون',
-    
-    # دسته دوم: اسکالپینگ
-    'ema_scalping': '⚡ اسکالپینگ با EMA',
-    'rsi_scalping': '📊 اسکالپینگ با RSI',
-    'squeeze_momentum': '💥 اسکوییز مومنتوم (شتاب ناگهانی)',
-    'volatility_breakout': '🔥 شکست نوسان (Volatility Breakout)',
-    'breakout_retest': '🔄 پولبک به شکست (Breakout Retest)',
-    'mean_reversion': '⚖️ بازگشت به میانگین (Mean Reversion)',
-    
-    # دسته سوم: سوئینگ
-    'momentum_swing': '🚀 مومنتوم سوئینگ (نوسان با شتاب)',
-    'trend_following': '📈 دنبال‌کننده روند (Trend Following)',
-    'trend_reversal': '🔀 برگشت روند (Trend Reversal)',
-    'divergence_play': '📉 معامله بر اساس واگرایی (Divergence Play)',
-    'continuation_pattern': '🔁 الگوی ادامه‌دهنده (Continuation Pattern)',
-    'range_bound': '📏 معامله در محدوده رنج (Range Bound)',
-    
-    # دسته چهارم: پیشرفته
-    'triple_confluence': '🎯 همگرایی سه‌گانه (Triple Confluence)',
-    'pullback_retracement': '↩️ اصلاح پولبک (Pullback Retracement)',
-    'liquidity_sweep': '🌊 لیکوئیدیتی سویپ (جارو یا شکار نقدینگی)'
 }
 
 # دسته‌بندی استراتژی‌ها برای منو
 STRATEGY_CATEGORIES = {
     'شخصی': ['narmoon_ai'],
-    'اسکالپینگ': ['ema_scalping', 'rsi_scalping', 'squeeze_momentum',
-                 'volatility_breakout', 'breakout_retest', 'mean_reversion'],
-    'سوئینگ': ['momentum_swing', 'trend_following', 'trend_reversal',
-               'divergence_play', 'continuation_pattern', 'range_bound'],
-    'پیشرفته': ['triple_confluence', 'pullback_retracement', 'liquidity_sweep']
 }
 
 # === منوهای رمزارز جدید ===

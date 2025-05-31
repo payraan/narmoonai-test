@@ -268,82 +268,65 @@ async def handle_timeframe_selection(update: Update, context: ContextTypes.DEFAU
     return await show_strategy_selection(update, context)
 
 async def show_strategy_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """نمایش لیست استراتژی‌های معاملاتی"""
-    strategy_buttons = []
+    """انتخاب خودکار استراتژی نارموون (تنها گزینه موجود)"""
     
-    # افزودن هدر برای هر دسته
-    for category, strategies in STRATEGY_CATEGORIES.items():
-        # هدر دسته
-        strategy_buttons.append([InlineKeyboardButton(f"═══ {category} ═══", callback_data="ignore")])
-        
-        # استراتژی‌های دسته
-        for strategy_key in strategies:
-            strategy_name = STRATEGIES[strategy_key]
-            strategy_buttons.append([
-                InlineKeyboardButton(strategy_name, callback_data=f"strategy_{strategy_key}")
-            ])
-        
-        # خط جداکننده
-        strategy_buttons.append([InlineKeyboardButton("───────────", callback_data="ignore")])
-    
-    # حذف آخرین خط جداکننده
-    strategy_buttons.pop()
-    
-    # Fix: بهبود navigation buttons
-    strategy_buttons.append([
-        InlineKeyboardButton("🔙 بازگشت به تایم‌فریم", callback_data="back_to_timeframes"),
-        InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")
-    ])
-    
-    strategy_markup = InlineKeyboardMarkup(strategy_buttons)
-    
-    # نمایش اطلاعات انتخاب‌های قبلی
-    selected_market = context.user_data.get('selected_market', 'نامشخص')
-    selected_timeframe = context.user_data.get('selected_timeframe', 'نامشخص')
-    market_name = MARKETS.get(selected_market, 'نامشخص')
-    
-    await update.callback_query.edit_message_text(
-        f"📊 بازار: {market_name}\n⏰ تایم‌فریم: {selected_timeframe}\n\n🎯 لطفاً استراتژی معاملاتی مورد نظر خود را انتخاب کنید:",
-        reply_markup=strategy_markup
-    )
-    
-    return SELECTING_STRATEGY
-
-async def handle_strategy_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """مدیریت انتخاب استراتژی"""
-    query = update.callback_query
-    await query.answer()
-    
-    # نادیده گیری کلیک‌های روی هدرها و خط‌های جداکننده
-    if query.data == "ignore":
-        return SELECTING_STRATEGY
-    
-    strategy_key = query.data.replace("strategy_", "")
-    context.user_data['selected_strategy'] = strategy_key
+    # مستقیم انتخاب استراتژی نارموون بدون نمایش منو
+    context.user_data['selected_strategy'] = 'narmoon_ai'
     
     # بارگیری پرامپت استراتژی از فایل استراتژی‌ها
     from resources.prompts.strategies import STRATEGY_PROMPTS
-    context.user_data['strategy_prompt'] = STRATEGY_PROMPTS[strategy_key]
+    context.user_data['strategy_prompt'] = STRATEGY_PROMPTS['narmoon_ai']
     
-    # نمایش پیام برای ارسال تصاویر
+    # نمایش اطلاعات انتخاب‌ها
     selected_market = context.user_data.get('selected_market', 'نامشخص')
     selected_timeframe = context.user_data.get('selected_timeframe', 'نامشخص')
-    selected_strategy_name = STRATEGIES.get(strategy_key, 'نامشخص')
     market_name = MARKETS.get(selected_market, 'نامشخص')
     expected_frames = context.user_data['expected_frames']
     tf_list = " - ".join(expected_frames)
     
-    await query.edit_message_text(
+    await update.callback_query.edit_message_text(
         f"✅ انتخاب‌های شما:\n" +
         f"📊 بازار: {market_name}\n" +
         f"⏰ تایم‌فریم: {selected_timeframe}\n" +
-        f"🎯 استراتژی: {selected_strategy_name}\n\n" +
+        f"🎯 استراتژی: 🤖 استراتژی شخصی هوش مصنوعی نارموون\n\n" +
         f"📸 مرحله نهایی: لطفاً ۳ اسکرین‌شات از نمودار در تایم‌فریم‌های زیر ارسال کنید:\n\n" +
         f"🔹 {tf_list}\n\n" +
         f"💡 برای لغو تحلیل، دستور /cancel را بفرست.",
         parse_mode='Markdown'
     )
     
+    return WAITING_IMAGES
+
+async def handle_strategy_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """مدیریت انتخاب استراتژی (فقط نارموون موجود است)"""
+    query = update.callback_query
+    await query.answer()
+    
+    # چون فقط یک استراتژی داریم، مستقیم نارموون رو انتخاب می‌کنیم
+    context.user_data['selected_strategy'] = 'narmoon_ai'
+    
+    # بارگیری پرامپت استراتژی از فایل استراتژی‌ها
+    from resources.prompts.strategies import STRATEGY_PROMPTS
+    context.user_data['strategy_prompt'] = STRATEGY_PROMPTS['narmoon_ai']
+    
+    # نمایش پیام برای ارسال تصاویر
+    selected_market = context.user_data.get('selected_market', 'نامشخص')
+    selected_timeframe = context.user_data.get('selected_timeframe', 'نامشخص')
+    market_name = MARKETS.get(selected_market, 'نامشخص')
+    expected_frames = context.user_data['expected_frames']
+    tf_list = " - ".join(expected_frames)
+
+    await query.edit_message_text(
+        f"✅ انتخاب‌های شما:\n" +
+        f"📊 بازار: {market_name}\n" +
+        f"⏰ تایم‌فریم: {selected_timeframe}\n" +
+        f"🎯 استراتژی: 🤖 استراتژی شخصی هوش مصنوعی نارموون\n\n" +
+        f"📸 مرحله نهایی: لطفاً ۳ اسکرین‌شات از نمودار در تایم‌فریم‌های زیر ارسال کنید:\n\n" +
+        f"🔹 {tf_list}\n\n" +
+        f"💡 برای لغو تحلیل، دستور /cancel را بفرست.",
+        parse_mode='Markdown'
+    )
+
     return WAITING_IMAGES
 
 async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
