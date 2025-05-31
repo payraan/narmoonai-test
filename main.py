@@ -125,6 +125,7 @@ def main():
                 CallbackQueryHandler(handle_referral_copy_link, pattern="^copy_link_.*"),
                 CallbackQueryHandler(handle_referral_details, pattern="^referral_details$"),
                 CallbackQueryHandler(handle_tnt_plan_selection, pattern="^(tnt_mini|tnt_plus|tnt_max)$"),  # ← این خط جدید
+                CallbackQueryHandler(subscription_plans, pattern="^subscription$"),  # این خط رو اضافه کن
                 CallbackQueryHandler(debug_callback_handler),
             ],
             CRYPTO_MENU: [
