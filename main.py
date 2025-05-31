@@ -118,15 +118,15 @@ def main():
         entry_points=[CommandHandler("start", start)],
         states={
             MAIN_MENU: [
-                CallbackQueryHandler(handle_main_menu),
-                CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
-                CallbackQueryHandler(start, pattern="^main_menu$"),
-                CallbackQueryHandler(show_referral_panel, pattern="^referral_panel$"),
+                CallbackQueryHandler(handle_tnt_plan_selection, pattern="^(tnt_mini|tnt_plus|tnt_max)$"),  # اول این
                 CallbackQueryHandler(handle_referral_copy_link, pattern="^copy_link_.*"),
                 CallbackQueryHandler(handle_referral_details, pattern="^referral_details$"),
-                CallbackQueryHandler(handle_tnt_plan_selection, pattern="^(tnt_mini|tnt_plus|tnt_max)$"),  # ← این خط جدید
-                CallbackQueryHandler(subscription_plans, pattern="^subscription$"),  # این خط رو اضافه کن
-                CallbackQueryHandler(debug_callback_handler),
+                CallbackQueryHandler(show_referral_panel, pattern="^referral_panel$"),
+                CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
+                CallbackQueryHandler(start, pattern="^main_menu$"),
+                CallbackQueryHandler(subscription_plans, pattern="^subscription$"),
+                CallbackQueryHandler(handle_main_menu),  # handlers عمومی بعد از specific ones
+                CallbackQueryHandler(debug_callback_handler),  # در آخر
             ],
             CRYPTO_MENU: [
                 CallbackQueryHandler(dex_menu, pattern="^narmoon_dex$"),
