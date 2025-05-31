@@ -44,11 +44,11 @@ async def send_long_message(update, context, message, max_length=3500):
     # ارسال قسمت‌ها
     for i, chunk in enumerate(chunks):
         if i == 0:
-            header = f"📊 **تحلیل مولتی تایم فریم نارموون** (بخش {i+1}/{len(chunks)})\n\n"
+            header = f"📊 تحلیل مولتی تایم فریم نارموون (بخش {i+1}/{len(chunks)})\n\n"
             await update.message.reply_text(header + chunk, parse_mode='Markdown')
         else:
             await asyncio.sleep(1.5)  # تاخیر 1.5 ثانیه
-            header = f"📊 **ادامه تحلیل** (بخش {i+1}/{len(chunks)})\n\n"
+            header = f"📊 ادامه تحلیل (بخش {i+1}/{len(chunks)})\n\n"
             await update.message.reply_text(header + chunk, parse_mode='Markdown')
 
 # هندلرهای اصلی
@@ -107,7 +107,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name if update.effective_user.first_name else "کاربر"
     
     welcome_text = f"""
-سلام {user_name} عزیز! 👋✨ به دستیار هوش مصنوعی معامله‌گری **نارموون** خوش اومدی!
+سلام {user_name} عزیز! 👋✨ به دستیار هوش مصنوعی معامله‌گری نارموون خوش اومدی!
 
 🚀 اینجا می‌تونی:
 - بازارهای مالی رو با قدرت هوش مصنوعی تحلیل کنی
@@ -156,39 +156,29 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "faq":
         return await show_faq(update, context)
     elif query.data == "crypto":
-        # این import رو اینجا انجام می‌دیم تا circular import نداشته باشیم
         from handlers.crypto_handlers import crypto_menu
         return await crypto_menu(update, context)
     elif query.data == "referral_panel":
         return await show_referral_panel(update, context)
     elif query.data == "analyze_charts":
-        # بررسی وضعیت اشتراک کاربر
         user_id = update.effective_user.id
-        if check_subscription(user_id):
+        from database.operations import check_tnt_analysis_limit
+        
+        limit_check = check_tnt_analysis_limit(user_id)
+        
+        if limit_check["allowed"]:
             return await show_market_selection(update, context)
         else:
             subscription_buttons = [
-                [InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription")],
+                [InlineKeyboardButton("💳 خرید اشتراک TNT", callback_data="subscription")],
                 [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
             ]
             
             await query.edit_message_text(
-                "⚠️ برای استفاده از بخش تحلیل نمودارها نیاز به اشتراک فعال دارید.",
+                "⚠️ برای استفاده از تحلیل TNT نیاز به اشتراک دارید",
                 reply_markup=InlineKeyboardMarkup(subscription_buttons)
             )
             return MAIN_MENU
-    elif query.data == "sub_1month":
-        # اشتراک ماهانه
-        context.user_data['selected_plan'] = "ماهانه"
-        context.user_data['plan_amount'] = 14.99
-        context.user_data['plan_duration'] = 1
-        return await show_payment_info(update, context)
-    elif query.data == "sub_3month":
-        # اشتراک سه ماهه
-        context.user_data['selected_plan'] = "سه ماهه"
-        context.user_data['plan_amount'] = 39.99
-        context.user_data['plan_duration'] = 3
-        return await show_payment_info(update, context)
     
     return MAIN_MENU
 
@@ -344,11 +334,11 @@ async def handle_strategy_selection(update: Update, context: ContextTypes.DEFAUL
     tf_list = " - ".join(expected_frames)
     
     await query.edit_message_text(
-        f"✅ **انتخاب‌های شما:**\n" +
+        f"✅ انتخاب‌های شما:\n" +
         f"📊 بازار: {market_name}\n" +
         f"⏰ تایم‌فریم: {selected_timeframe}\n" +
         f"🎯 استراتژی: {selected_strategy_name}\n\n" +
-        f"📸 **مرحله نهایی:** لطفاً **۳ اسکرین‌شات** از نمودار در تایم‌فریم‌های زیر ارسال کنید:\n\n" +
+        f"📸 مرحله نهایی: لطفاً ۳ اسکرین‌شات از نمودار در تایم‌فریم‌های زیر ارسال کنید:\n\n" +
         f"🔹 {tf_list}\n\n" +
         f"💡 برای لغو تحلیل، دستور /cancel را بفرست.",
         parse_mode='Markdown'
@@ -380,9 +370,9 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             
             await update.message.reply_text(
-                "⚠️ **دسترسی محدود**\n\n"
+                "⚠️ دسترسی محدود\n\n"
                 "برای استفاده از تحلیل هوش مصنوعی TNT نیاز به اشتراک دارید.\n\n"
-                "🔸 **پلن‌های موجود:**\n"
+                "🔸 پلن‌های موجود:\n"
                 "• TNT MINI: $10/ماه (60 تحلیل)\n"
                 "• TNT PLUS+: $18/ماه (150 تحلیل)\n"
                 "• TNT MAX: $39/ماه (400 تحلیل + گروه VIP)",
@@ -399,7 +389,7 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             
             await update.message.reply_text(
-                "⏰ **اشتراک منقضی شده**\n\n"
+                "⏰ اشتراک منقضی شده\n\n"
                 f"{message}\n\n"
                 "برای ادامه استفاده از تحلیل TNT، اشتراک خود را تمدید کنید.",
                 reply_markup=InlineKeyboardMarkup(subscription_buttons),
@@ -418,7 +408,7 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             
             await update.message.reply_text(
-                "📊 **سقف ماهانه به پایان رسید**\n\n"
+                "📊 سقف ماهانه به پایان رسید\n\n"
                 f"استفاده شده: {usage}/{limit} تحلیل\n\n"
                 "💡 برای تحلیل بیشتر می‌توانید:\n"
                 "• پلن خود را ارتقا دهید\n"
@@ -438,7 +428,7 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             
             await update.message.reply_text(
-                "⏱️ **سقف ساعتی به پایان رسید**\n\n"
+                "⏱️ سقف ساعتی به پایان رسید\n\n"
                 f"استفاده شده: {usage}/{limit} تحلیل در این ساعت\n\n"
                 "⏰ لطفاً یک ساعت دیگر دوباره تلاش کنید.\n\n"
                 "💡 برای حد ساعتی بیشتر، پلن خود را ارتقا دهید.",
@@ -514,16 +504,16 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
         market_name = MARKETS.get(selected_market, 'نامشخص')
         strategy_name = STRATEGIES.get(selected_strategy, 'نامشخص')
         
-        summary = f"📊 **تحلیل شخصی‌سازی شده نارموون**\n\n"
-        summary += f"🎯 **بازار:** {market_name}\n"
-        summary += f"⏰ **تایم‌فریم:** {selected_timeframe}\n"
-        summary += f"🔧 **استراتژی:** {strategy_name}\n"
+        summary = f"📊 تحلیل شخصی‌سازی شده نارموون\n\n"
+        summary += f"🎯 بازار: {market_name}\n"
+        summary += f"⏰ تایم‌فریم: {selected_timeframe}\n"
+        summary += f"🔧 استراتژی: {strategy_name}\n"
         
         # اضافه کردن آمار استفاده
         updated_limit_check = check_tnt_analysis_limit(user_id)
         if updated_limit_check["allowed"]:
-            summary += f"📈 **باقی‌مانده ماهانه:** {updated_limit_check.get('remaining_monthly', 'نامشخص')} تحلیل\n"
-            summary += f"⏱️ **باقی‌مانده ساعتی:** {updated_limit_check.get('remaining_hourly', 'نامشخص')} تحلیل\n"
+            summary += f"📈 باقی‌مانده ماهانه: {updated_limit_check.get('remaining_monthly', 'نامشخص')} تحلیل\n"
+            summary += f"⏱️ باقی‌مانده ساعتی: {updated_limit_check.get('remaining_hourly', 'نامشخص')} تحلیل\n"
         
         summary += f"{'═' * 30}\n\n"
         
@@ -665,27 +655,40 @@ async def terms_and_conditions(update: Update, context: ContextTypes.DEFAULT_TYP
     return MAIN_MENU
 
 async def subscription_plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """نمایش پلن‌های اشتراکی"""
+    """نمایش پلن‌های TNT جدید"""
     subscription_text = """
-💳 پلن‌های اشتراکی دستیار هوش مصنوعی نارموون
-لطفاً یکی از پلن‌های زیر را انتخاب کنید:
+💳 پلن‌های اشتراک TNT نارموون
 
-🔄 **نارموون دکس (رایگان)**: افزونه چت‌جی‌پی‌تی مخصوص تحلیل توکن‌های دکس
-💰 **نارموون کوین (رایگان)**: افزونه چت‌جی‌پی‌تی مخصوص تحلیل آلتکوین‌ها
-🤖 **نارموون TNT (ویژه Pro)**:
-🔹 **ماهانه:** ۱۴،۹۹ دلار برای یک ماه دسترسی کامل به تمام امکانات ربات
-🔹 **سه ماهه (پیشنهاد ویژه):** ۳۹،۹۹ دلار برای سه ماه --- معادل ماهی فقط ۱۳،۳۳ دلار! 💡
+🤖 سیستم تحلیل هوش مصنوعی پیشرفته
+
+🔸 TNT MINI - $10/ماه
+- 60 تحلیل در ماه
+- 2 تحلیل در ساعت
+- دسترسی به تمام استراتژی‌ها
+
+🔸 TNT PLUS+ - $18/ماه  
+- 150 تحلیل در ماه
+- 4 تحلیل در ساعت
+- دسترسی به تمام استراتژی‌ها
+
+🔸 TNT MAX - $39/ماه
+- 400 تحلیل در ماه
+- 8 تحلیل در ساعت
+- دسترسی VIP به گروه ویژه
+- اولویت پشتیبانی
+
+💡 ویژگی‌های جدید:
+✅ محدودیت هوشمند ساعتی و ماهانه
+✅ تحلیل چند تایم‌فریمی با GPT-4o
+✅ 15+ استراتژی معاملاتی تخصصی
 """
     
     subscription_buttons = [
         [
-            InlineKeyboardButton("🔄 نارموون دکس (رایگان)", url=NARMOON_DEX_LINK),
-            InlineKeyboardButton("💰 نارموون کوین (رایگان)", url=NARMOON_COIN_LINK)
+            InlineKeyboardButton("🔸 TNT MINI ($10)", callback_data="tnt_mini"),
+            InlineKeyboardButton("🔸 TNT PLUS+ ($18)", callback_data="tnt_plus")
         ],
-        [
-            InlineKeyboardButton("🤖 نارموون TNT ماهانه (۱۴،۹۹ دلار)", callback_data="sub_1month"),
-            InlineKeyboardButton("🤖 نارموون TNT سه ماهه (۳۹،۹۹ دلار)", callback_data="sub_3month")
-        ],
+        [InlineKeyboardButton("🔸 TNT MAX ($39)", callback_data="tnt_max")],
         [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
     ]
     
@@ -886,7 +889,7 @@ async def handle_referral_copy_link(update: Update, context: ContextTypes.DEFAUL
     referral_link = f"https://t.me/NarmoonAI_BOT?start={referral_code}"
     
     await query.edit_message_text(
-        f"🔗 **لینک رفرال شما:**\n\n"
+        f"🔗 لینک رفرال شما:\n\n"
         f"`{referral_link}`\n\n"
         f"💡 این لینک را کپی کرده و با دوستان خود به اشتراک بگذارید.\n"
         f"برای هر خرید موفق، کمیسیون دریافت خواهید کرد!",
@@ -916,29 +919,29 @@ async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_
         )
         return MAIN_MENU
     
-    message = f"""📊 **جزئیات کامل رفرال**
+    message = f"""📊 جزئیات کامل رفرال
 
-🔗 **کد رفرال:** `{stats['referral_code']}`
+🔗 کد رفرال: `{stats['referral_code']}`
 
-💰 **آمار مالی:**
+💰 آمار مالی:
 - کل درآمد: ${stats['total_earned']:.2f}
 - پرداخت شده: ${stats['total_paid']:.2f}
 - در انتظار: ${stats['pending_amount']:.2f}
 
-👥 **آمار دعوت:**
+👥 آمار دعوت:
 - کل دعوت‌های موفق: {stats['successful_referrals']} نفر
 
 """
     
     if stats['buyers']:
-        message += "🛒 **لیست خریداران:**\n"
+        message += "🛒 لیست خریداران:\n"
         for i, buyer in enumerate(stats['buyers'], 1):
             status_emoji = "✅" if buyer['status'] == 'paid' else "⏳"
             message += f"{i}. {status_emoji} {buyer['username']}\n"
             message += f"   📅 {buyer['plan_type']} - ${buyer['amount']:.2f}\n"
             message += f"   📆 {buyer['date'][:10]}\n\n"
     
-    message += """💡 **نکات مهم:**
+    message += """💡 نکات مهم:
 - حداقل مبلغ برداشت: $20
 - برای برداشت با @Sultan_immortal تماس بگیرید
 - کمیسیون پس از تایید پرداخت محاسبه می‌شود"""
@@ -950,6 +953,71 @@ async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_
         ]]),
         parse_mode='Markdown'
     )
+    return MAIN_MENU
+
+async def handle_tnt_plan_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """پردازش انتخاب پلن TNT"""
+    query = update.callback_query
+    await query.answer()
+    
+    plan_mapping = {
+        "tnt_mini": ("TNT_MINI", "$10", "TNT MINI"),
+        "tnt_plus": ("TNT_PLUS", "$18", "TNT PLUS+"), 
+        "tnt_max": ("TNT_MAX", "$39", "TNT MAX")
+    }
+    
+    if query.data in plan_mapping:
+        plan_code, price, plan_name = plan_mapping[query.data]
+        context.user_data['selected_tnt_plan'] = plan_code
+        context.user_data['plan_amount'] = price
+        context.user_data['plan_display'] = plan_name
+        
+        return await show_tnt_payment_info(update, context)
+    
+    return MAIN_MENU
+
+async def show_tnt_payment_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش اطلاعات پرداخت TNT"""
+    try:
+        from config.settings import SOLANA_WALLETS
+        import random
+        
+        # انتخاب تصادفی کیف پول
+        wallet_address = random.choice(SOLANA_WALLETS)
+        context.user_data['selected_wallet'] = wallet_address
+        
+        plan_display = context.user_data['plan_display']
+        amount = context.user_data['plan_amount']
+        
+        payment_text = f"""
+💎 اطلاعات پرداخت {plan_display}
+
+💰 مبلغ: {amount} دلار
+🌐 شبکه: Solana
+
+📍 آدرس کیف پول:
+<code>{wallet_address}</code>
+
+📞 مراحل بعد:
+1️⃣ مبلغ را به آدرس بالا ارسال کنید
+2️⃣ TXID تراکنش را کپی کنید  
+3️⃣ با پشتیبانی تماس بگیرید: @Sultan_immortal
+4️⃣ TXID را برای فعال‌سازی ارسال کنید
+
+⚡ فعال‌سازی: حداکثر 30 دقیقه پس از تأیید
+"""
+        
+        payment_buttons = [[InlineKeyboardButton("🔙 بازگشت", callback_data="subscription")]]
+        payment_markup = InlineKeyboardMarkup(payment_buttons)
+        
+        await update.callback_query.edit_message_text(
+            payment_text,
+            reply_markup=payment_markup,
+            parse_mode='HTML'
+        )
+    except Exception as e:
+        print(f"Error in show_tnt_payment_info: {str(e)}")
+    
     return MAIN_MENU
 
 async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):

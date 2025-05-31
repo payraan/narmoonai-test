@@ -25,6 +25,7 @@ from handlers.handlers import (
     show_narmoon_products, show_ai_features, show_faq, usage_guide,
     terms_and_conditions, subscription_plans, support_contact,
     show_referral_panel, handle_referral_copy_link, handle_referral_details,
+    handle_tnt_plan_selection,
     debug_callback_handler
 )
 
@@ -124,9 +125,10 @@ def main():
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(show_referral_panel, pattern="^referral_panel$"),
-                CallbackQueryHandler(handle_referral_copy_link, pattern="^copy_link_.*"),  # تغییر: .* اضافه شد
+                CallbackQueryHandler(handle_referral_copy_link, pattern="^copy_link_.*"),
                 CallbackQueryHandler(handle_referral_details, pattern="^referral_details$"),
-                CallbackQueryHandler(debug_callback_handler),  # fallback
+                CallbackQueryHandler(handle_tnt_plan_selection, pattern="^(tnt_mini|tnt_plus|tnt_max)$"),  # ← این خط جدید
+                CallbackQueryHandler(debug_callback_handler),
             ],
             CRYPTO_MENU: [
                 CallbackQueryHandler(dex_menu, pattern="^narmoon_dex$"),
