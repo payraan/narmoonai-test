@@ -13,9 +13,6 @@ from config.constants import (
 )
 
 from database.operations import init_db, auto_migrate_tnt_system
-# حذف import های migration که مشکل ایجاد می‌کنند
-# from simple_migration import simple_migration
-# from fix_referral_migration import fix_referral_migration
 
 # Import handlers
 from handlers.handlers import (
