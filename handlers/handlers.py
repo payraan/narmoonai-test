@@ -85,22 +85,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
    # ایجاد منوی اصلی
     main_menu_buttons = [
-        [InlineKeyboardButton("📊 تحلیل نمودارها با هوش مصنوعی TNT", callback_data="analyze_charts")],
-        [InlineKeyboardButton("🪙 رمزارز", callback_data="crypto")],
-        [InlineKeyboardButton("💰 سیستم رفرال", callback_data="referral_panel")],
-        [
-        InlineKeyboardButton("📚 دفترچه راهنما", callback_data="guide"),
-        InlineKeyboardButton("🛒 محصولات نارموون", callback_data="narmoon_products")
-        ],
-        [InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription")],
-        [InlineKeyboardButton("🧠 قابلیت‌های دستیار هوش مصنوعی", callback_data="ai_features")],
-        [
+    [InlineKeyboardButton("📊 تحلیل نمودارها با هوش مصنوعی TNT", callback_data="analyze_charts")],
+    [InlineKeyboardButton("🪙 رمزارز", callback_data="crypto")],
+    [InlineKeyboardButton("💰 سیستم رفرال", callback_data="referral_panel")],
+    [
+        InlineKeyboardButton("💳 خرید اشتراک", callback_data="subscription"),
+        InlineKeyboardButton("📚 دفترچه راهنما", callback_data="guide")
+    ],
+    [InlineKeyboardButton("🧠 قابلیت‌های دستیار هوش مصنوعی", callback_data="ai_features")],
+    [
         InlineKeyboardButton("❓ سوالات متداول", callback_data="faq"),
         InlineKeyboardButton("📜 قوانین و مقررات", callback_data="terms")
-        ],
-        [InlineKeyboardButton("👨‍💻 ارتباط با پشتیبانی", callback_data="support")]
-        ]
-    
+    ],
+    [InlineKeyboardButton("👨‍💻 ارتباط با پشتیبانی", callback_data="support")]
+    ]
+
     main_menu_markup = InlineKeyboardMarkup(main_menu_buttons)
     
     # دریافت نام کاربر برای شخصی‌سازی پیام
