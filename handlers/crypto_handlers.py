@@ -238,8 +238,9 @@ async def handle_dex_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [
                 [InlineKeyboardButton("🌍 همه شبکه‌ها", callback_data="trending_all_networks")],
                 [InlineKeyboardButton("🔗 سولانا فقط", callback_data="trending_solana_only")],
+                [InlineKeyboardButton("🤖 تحلیل با هوش مصنوعی TNT", callback_data="tnt_analysis_crypto")],
                 [InlineKeyboardButton("🔙 بازگشت", callback_data="narmoon_dex")]
-            ]
+        ]
             
             await query.edit_message_text(
                 "🔥 **توکن های داغ**\n\n"
@@ -346,8 +347,19 @@ async def handle_coin_option(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return DEX_SUBMENU  # استفاده از همان state
 
         elif option == 'trending_coins':
-            data = direct_api_service.coingecko_trending()
-            message = format_trending_coins(data)
+            # نمایش زیر منو های کوین های داغ
+            keyboard = [
+                [InlineKeyboardButton("🔥 کوین‌های ترند", callback_data="trending_coins_list")],
+                [InlineKeyboardButton("🤖 تحلیل با هوش مصنوعی TNT", callback_data="tnt_analysis_crypto")],
+                [InlineKeyboardButton("🔙 بازگشت", callback_data="narmoon_coin")]
+            ]
+    
+            await query.edit_message_text(
+                "🔥 **کوین های داغ**\n\n"
+                "لطفاً یکی از گزینه‌ها را انتخاب کنید:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+            return COIN_MENU
             
         elif option == 'global_stats':
             data = direct_api_service.coingecko_global()
@@ -414,7 +426,11 @@ async def handle_trending_options(update: Update, context: ContextTypes.DEFAULT_
             message = format_combined_solana_trending(combined_data)
             
         # دکمه بازگشت
-        keyboard = [[InlineKeyboardButton("🔙 بازگشت به دکس", callback_data="narmoon_dex")]]
+        # دکمه بازگشت
+        keyboard = [
+            [InlineKeyboardButton("🤖 تحلیل با هوش مصنوعی TNT", callback_data="tnt_analysis_crypto")],
+            [InlineKeyboardButton("🔙 بازگشت به دکس", callback_data="narmoon_dex")]
+        ]
             
         await query.edit_message_text(
             message,
@@ -432,6 +448,73 @@ async def handle_trending_options(update: Update, context: ContextTypes.DEFAULT_
         )
                 
     return DEX_MENU
+
+async def handle_tnt_analysis_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """پردازش درخواست تحلیل TNT از بخش کریپتو"""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    
+    # بررسی محدودیت TNT
+    from database.operations import check_tnt_analysis_limit
+    limit_check = check_tnt_analysis_limit(user_id)
+    
+    if limit_check["allowed"]:
+        # تنظیم بازار رمزارز و انتقال به انتخاب تایم‌فریم
+        context.user_data['selected_market'] = 'crypto'
+        
+        # Import تابع تایم‌فریم از handlers.py
+        from handlers.handlers import show_timeframes
+        return await show_timeframes(update, context)
+    else:
+        # نمایش پیام محدودیت
+        reason = limit_check.get("reason", "unknown")
+        message = limit_check.get("message", "خطا در بررسی محدودیت")
+        
+        subscription_buttons = [
+            [InlineKeyboardButton("💳 خرید اشتراک TNT", callback_data="subscription")],
+            [InlineKeyboardButton("🔙 بازگشت", callback_data="narmoon_dex")]
+        ]
+        
+        await query.edit_message_text(
+            f"⚠️ {message}\n\nبرای استفاده از تحلیل TNT نیاز به اشتراک دارید.",
+            reply_markup=InlineKeyboardMarkup(subscription_buttons)
+        )
+        return DEX_MENU
+
+async def handle_trending_coins_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش لیست کوین‌های ترند"""
+    query = update.callback_query
+    await query.answer()
+    
+    await query.edit_message_text("⏳ در حال دریافت کوین‌های ترند...")
+    
+    try:
+        data = direct_api_service.coingecko_trending()
+        message = format_trending_coins(data)
+        
+        keyboard = [
+            [InlineKeyboardButton("🤖 تحلیل با هوش مصنوعی TNT", callback_data="tnt_analysis_crypto")],
+            [InlineKeyboardButton("🔙 بازگشت به کوین", callback_data="narmoon_coin")]
+        ]
+        
+        await query.edit_message_text(
+            message,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        print(f"Error in handle_trending_coins_list: {e}")
+        await query.edit_message_text(
+            format_error_message("general"),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 بازگشت", callback_data="narmoon_coin")
+            ]])
+        )
+    
+    return COIN_MENU
 
 async def handle_treasury_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """پردازش گزینه‌های ذخایر شرکت‌ها"""

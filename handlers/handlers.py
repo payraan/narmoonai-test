@@ -355,9 +355,9 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "⚠️ دسترسی محدود\n\n"
                 "برای استفاده از تحلیل هوش مصنوعی TNT نیاز به اشتراک دارید.\n\n"
                 "🔸 پلن‌های موجود:\n"
-                "• TNT MINI: $10/ماه (60 تحلیل)\n"
-                "• TNT PLUS+: $18/ماه (150 تحلیل)\n"
-                "• TNT MAX: $39/ماه (400 تحلیل + گروه VIP)",
+                "• TNT MINI: $6/ماه (60 تحلیل)\n"
+                "• TNT PLUS+: $10/ماه (150 تحلیل)\n"
+                "• TNT MAX: $22/ماه (400 تحلیل + گروه VIP)",
                 reply_markup=InlineKeyboardMarkup(subscription_buttons),
                 parse_mode='Markdown'
             )
@@ -611,9 +611,9 @@ async def show_faq_page2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     faq_text_page2 = """❓ **سوالات متداول (ادامه)** ❓
 
 **۶. پلن‌های اشتراک TNT چه تفاوت‌هایی دارند؟**
-- **TNT MINI ($10/ماه):** ۶۰ تحلیل ماهانه، ۲ تحلیل ساعتی
-- **TNT PLUS+ ($18/ماه):** ۱۵۰ تحلیل ماهانه، ۴ تحلیل ساعتی
-- **TNT MAX ($39/ماه):** ۴۰۰ تحلیل ماهانه، ۸ تحلیل ساعتی + دسترسی VIP
+- **TNT MINI ($6/ماه):** ۶۰ تحلیل ماهانه، ۲ تحلیل ساعتی
+- **TNT PLUS+ ($10/ماه):** ۱۵۰ تحلیل ماهانه، ۴ تحلیل ساعتی
+- **TNT MAX ($22/ماه):** ۴۰۰ تحلیل ماهانه، ۸ تحلیل ساعتی + دسترسی VIP
 
 **۷. چگونه از کلاهبرداری توکن‌ها محافظت کنم؟**
 نارموون پارامترهای امنیتی مانند Mint/Freeze Authority، سن توکن، حجم معاملات، حرکت نهنگ‌ها و GT Score را بررسی می‌کند. همیشه تحقیق شخصی (DYOR) انجام دهید.
@@ -776,21 +776,21 @@ async def subscription_plans(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 ━━━━━━━━━━━━━━━
 
-🔸 **TNT MINI** — $10/ماه
+🔸 **TNT MINI** — $6/ماه
    • ۶۰ تحلیل در ماه
    • ۲ تحلیل در ساعت
    • دسترسی کامل به استراتژی هوش مصنوعی TNT
 
 ━━━━━━━━━━━━━━━
 
-🔸 **TNT PLUS+** — $18/ماه
+🔸 **TNT PLUS+** — $10/ماه
    • ۱۵۰ تحلیل در ماه
    • ۴ تحلیل در ساعت
    • دسترسی کامل به استراتژی هوش مصنوعی TNT
 
 ━━━━━━━━━━━━━━━
 
-🔸 **TNT MAX** — $39/ماه
+🔸 **TNT MAX** — $22/ماه
    • ۴۰۰ تحلیل در ماه
    • ۸ تحلیل در ساعت
    • دسترسی کامل به استراتژی هوش مصنوعی TNT
@@ -803,9 +803,9 @@ async def subscription_plans(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     # دکمه‌های تک ردیفه
     subscription_buttons = [
-        [InlineKeyboardButton("🔸 TNT MINI ($10)", callback_data="tnt_mini")],
-        [InlineKeyboardButton("🔸 TNT PLUS+ ($18)", callback_data="tnt_plus")],
-        [InlineKeyboardButton("🔸 TNT MAX ($39)", callback_data="tnt_max")],
+        [InlineKeyboardButton("🔸 TNT MINI ($6)", callback_data="tnt_mini")],
+        [InlineKeyboardButton("🔸 TNT PLUS+ ($10)", callback_data="tnt_plus")],
+        [InlineKeyboardButton("🔸 TNT MAX ($22)", callback_data="tnt_max")],
         [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
     ]
     
@@ -1038,7 +1038,7 @@ async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_
     
     message = f"""📊 جزئیات کامل رفرال
 
-🔗 کد رفرال: `{stats['referral_code']}`
+🔗 کد رفرال: {stats['referral_code']}
 
 💰 آمار مالی:
 - کل درآمد: ${stats['total_earned']:.2f}
@@ -1068,7 +1068,7 @@ async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton("🔙 بازگشت به پنل", callback_data="referral_panel")
         ]]),
-        parse_mode='Markdown'
+        parse_mode=None
     )
     return MAIN_MENU
 
@@ -1078,9 +1078,9 @@ async def handle_tnt_plan_selection(update: Update, context: ContextTypes.DEFAUL
     await query.answer()
     
     plan_mapping = {
-        "tnt_mini": ("TNT_MINI", "$10", "TNT MINI"),
-        "tnt_plus": ("TNT_PLUS", "$18", "TNT PLUS+"), 
-        "tnt_max": ("TNT_MAX", "$39", "TNT MAX")
+        "tnt_mini": ("TNT_MINI", "$6", "TNT MINI"),
+        "tnt_plus": ("TNT_PLUS", "$10", "TNT PLUS+"), 
+        "tnt_max": ("TNT_MAX", "$22", "TNT MAX")
     }
     
     if query.data in plan_mapping:

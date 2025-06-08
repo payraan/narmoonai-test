@@ -280,9 +280,9 @@ async def admin_activate_tnt(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text(
                 "فرمت صحیح: /activatetnt user_id plan_name duration\n\n"
                 "پلن‌های موجود:\n"
-                "• TNT_MINI: $10 (60 تحلیل/ماه، 2 تحلیل/ساعت)\n"
-                "• TNT_PLUS: $18 (150 تحلیل/ماه، 4 تحلیل/ساعت)\n"
-                "• TNT_MAX: $39 (400 تحلیل/ماه، 8 تحلیل/ساعت + VIP)\n\n"
+                "• TNT_MINI: $6 (60 تحلیل/ماه، 2 تحلیل/ساعت)\n"
+                "• TNT_PLUS: $10 (150 تحلیل/ماه، 4 تحلیل/ساعت)\n"
+                "• TNT_MAX: $22 (400 تحلیل/ماه، 8 تحلیل/ساعت + VIP)\n\n"
                 "مثال: /activatetnt 123456789 TNT_MINI 1"
             )
             return
@@ -755,3 +755,48 @@ async def admin_reset_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
+
+async def admin_referral_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش آمار کامل رفرال برای ادمین"""
+    if update.effective_user.id != ADMIN_ID:
+        return
+    
+    try:
+        from database.operations import get_admin_referral_stats
+        
+        await update.message.reply_text("🔄 در حال دریافت آمار رفرال...")
+        
+        # دریافت آمار کامل
+        stats = get_admin_referral_stats()
+        
+        if not stats.get('success'):
+            await update.message.reply_text(f"❌ خطا: {stats.get('error')}")
+            return
+        
+        # آمار کلی سیستم
+        system_stats = stats['system_stats']
+        message = f"""📊 **آمار کامل سیستم رفرال**
+
+🔢 **آمار کلی:**
+- کل referrer ها: {system_stats['total_referrers']} نفر
+- کل کمیسیون‌ها: {system_stats['total_commissions']} مورد
+- کل مبلغ کمیسیون: ${system_stats['total_commissions_amount']:.2f}
+- در انتظار پرداخت: ${system_stats['pending_payments']:.2f}
+- پرداخت شده: ${system_stats['paid_amount']:.2f}
+
+👥 **فعال‌ترین referrer ها:**"""
+        
+        # نمایش 10 نفر برتر
+        referrers = stats['referrers'][:10]
+        for i, ref in enumerate(referrers, 1):
+            username = ref['username'][:15] + "..." if len(ref['username']) > 15 else ref['username']
+            message += f"""
+{i}. **{username}** (ID: {ref['user_id']})
+   • کل رفرال: {ref['total_referrals']} نفر
+   • کل درآمد: ${ref['total_earned']:.2f}
+   • در انتظار: ${ref['pending_amount']:.2f}"""
+        
+        await update.message.reply_text(message, parse_mode='Markdown')
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در دریافت آمار: {str(e)}")

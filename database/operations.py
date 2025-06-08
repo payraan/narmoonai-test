@@ -267,7 +267,7 @@ def check_subscription(user_id):
     conn = get_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT subscription_end, is_active FROM users WHERE user_id = %s", (user_id,))
+    cursor.execute("SELECT subscription_end, is_active FROM users WHERE user_id = ?", (user_id,))
     result = cursor.fetchone()
     
     if not result:
@@ -310,7 +310,7 @@ def register_user(user_id, username):
     if is_postgres:
         cursor.execute("""
             INSERT INTO users (user_id, username, referral_code) 
-            VALUES (%s, %s, %s) 
+            VALUES (?, ?, ?) 
             ON CONFLICT (user_id) DO UPDATE SET
             username = EXCLUDED.username,
             referral_code = COALESCE(users.referral_code, EXCLUDED.referral_code)
@@ -347,8 +347,8 @@ def activate_subscription(user_id, duration_months, sub_type):
     
     cursor.execute("""
         UPDATE users 
-        SET subscription_end = %s, subscription_type = %s, is_active = %s 
-        WHERE user_id = %s
+        SET subscription_end = ?, subscription_type = ?, is_active = ? 
+        WHERE user_id = ?
     """, (end_date, sub_type, True, user_id))
     
     conn.commit()
@@ -360,7 +360,7 @@ def get_user_info(user_id):
     conn = get_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
+    cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
     user_data = cursor.fetchone()
     
     if not user_data:
@@ -370,7 +370,7 @@ def get_user_info(user_id):
     # دریافت تراکنش‌های اخیر کاربر
     cursor.execute("""
         SELECT * FROM transactions 
-        WHERE user_id = %s 
+        WHERE user_id = ? 
         ORDER BY created_at DESC 
         LIMIT 5
     """, (user_id,))
@@ -386,7 +386,7 @@ def save_transaction(user_id, txid, wallet_address, amount, subscription_type):
     
     cursor.execute("""
         INSERT INTO transactions (user_id, txid, wallet_address, amount, subscription_type) 
-        VALUES (%s, %s, %s, %s, %s)
+        VALUES (?, ?, ?, ?, ?)
     """, (user_id, txid, wallet_address, amount, subscription_type))
     
     conn.commit()
@@ -402,7 +402,7 @@ def check_user_api_limit(user_id, is_premium=False):
     # شمارش درخواست‌های امروز
     cursor.execute("""
         SELECT COUNT(*) FROM api_requests 
-        WHERE user_id = %s AND request_date = %s
+        WHERE user_id = ? AND request_date = ?
     """, (user_id, today))
     count = cursor.fetchone()[0]
     
@@ -421,7 +421,7 @@ def log_api_request(user_id, endpoint):
     
     cursor.execute("""
         INSERT INTO api_requests (user_id, endpoint, request_date) 
-        VALUES (%s, %s, %s)
+        VALUES (?, ?, ?)
     """, (user_id, endpoint, today))
     
     conn.commit()
@@ -437,14 +437,14 @@ def get_user_api_stats(user_id):
     # تعداد درخواست‌های امروز
     cursor.execute("""
         SELECT COUNT(*) FROM api_requests 
-        WHERE user_id = %s AND request_date = %s
+        WHERE user_id = ? AND request_date = ?
     """, (user_id, today))
     today_count = cursor.fetchone()[0]
     
     # تعداد کل درخواست‌ها
     cursor.execute("""
         SELECT COUNT(*) FROM api_requests 
-        WHERE user_id = %s
+        WHERE user_id = ?
     """, (user_id,))
     total_count = cursor.fetchone()[0]
     
@@ -477,7 +477,7 @@ def migrate_from_sqlite_to_postgresql():
         for user in users:
             pg_cursor.execute("""
                 INSERT INTO users (user_id, username, subscription_end, subscription_type, is_active, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT (user_id) DO UPDATE SET
                 username = EXCLUDED.username,
                 subscription_end = EXCLUDED.subscription_end,
@@ -494,7 +494,7 @@ def migrate_from_sqlite_to_postgresql():
             # Skip id (auto-increment)
             pg_cursor.execute("""
                 INSERT INTO transactions (user_id, txid, wallet_address, amount, subscription_type, status, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """, transaction[1:])  # Skip first column (id)
         
         # Migration api_requests table
@@ -506,7 +506,7 @@ def migrate_from_sqlite_to_postgresql():
             for request in api_requests:
                 pg_cursor.execute("""
                     INSERT INTO api_requests (user_id, endpoint, request_date, created_at)
-                    VALUES (%s, %s, %s, %s)
+                    VALUES (?, ?, ?, ?)
                 """, request[1:])  # Skip first column (id)
         except sqlite3.OperationalError:
             print("⚠️ api_requests table not found in SQLite, skipping...")
@@ -540,7 +540,7 @@ def create_referral_relationship(referrer_code, referred_user_id):
     try:
         # پیدا کردن referrer از روی کد
         if is_postgres:
-            cursor.execute("SELECT user_id FROM users WHERE referral_code = %s", (referrer_code,))
+            cursor.execute("SELECT user_id FROM users WHERE referral_code = ?", (referrer_code,))
         else:
             cursor.execute("SELECT user_id FROM users WHERE referral_code = ?", (referrer_code,))
         
@@ -560,7 +560,7 @@ def create_referral_relationship(referrer_code, referred_user_id):
         # بررسی وجود رابطه قبلی
         if is_postgres:
             cursor.execute(
-                "SELECT id FROM referrals WHERE referrer_id = %s AND referred_id = %s",
+                "SELECT id FROM referrals WHERE referrer_id = ? AND referred_id = ?",
                 (referrer_id, referred_user_id)
             )
         else:
@@ -579,7 +579,7 @@ def create_referral_relationship(referrer_code, referred_user_id):
         if is_postgres:
             cursor.execute("""
                 INSERT INTO referrals (referrer_id, referred_id, status) 
-                VALUES (%s, %s, 'pending')
+                VALUES (?, ?, 'pending')
             """, (referrer_id, referred_user_id))
         else:
             cursor.execute("""
@@ -601,7 +601,7 @@ def create_referral_relationship(referrer_code, referred_user_id):
         return {"success": False, "error": f"خطا در ثبت رفرال: {str(e)}"}
 
 def calculate_commission(referrer_id, referred_user_id, plan_type, transaction_id):
-    """محاسبه و ثبت کمیسیون برای رفرال موفق"""
+    """محاسبه و ثبت کمیسیون برای رفرال موفق - به‌روزرسانی شده برای TNT"""
     conn = get_connection()
     cursor = conn.cursor()
     is_postgres = hasattr(conn, 'server_version')
@@ -609,31 +609,36 @@ def calculate_commission(referrer_id, referred_user_id, plan_type, transaction_i
     try:
         # دریافت تنظیمات کمیسیون کاربر
         if is_postgres:
-            cursor.execute("SELECT custom_commission_rate FROM users WHERE user_id = %s", (referrer_id,))
+            cursor.execute("SELECT custom_commission_rate FROM users WHERE user_id = ?", (referrer_id,))
         else:
             cursor.execute("SELECT custom_commission_rate FROM users WHERE user_id = ?", (referrer_id,))
         
         user_data = cursor.fetchone()
         custom_rate = user_data[0] if user_data and user_data[0] else None
         
-        # محاسبه کمیسیون پایه
-        if plan_type == "ماهانه":
-            base_commission = 7.00
-        elif plan_type == "سه_ماهه":
-            base_commission = 16.00
-        else:
-            base_commission = 0.00
+        # تعریف قیمت‌های پلن‌های TNT جدید
+        plan_prices = {
+            "TNT_MINI": 6.00,
+            "TNT_PLUS": 10.00,
+            "TNT_MAX": 22.00,
+            # پلن‌های قدیمی (سازگاری با گذشته)
+            "ماهانه": 25.00,
+            "سه_ماهه": 65.00
+        }
         
-        # اعمال نرخ سفارشی اگر وجود دارد
+        # محاسبه کمیسیون پایه با سیستم درصدی 35%
+        plan_price = plan_prices.get(plan_type, 0)
+        
         if custom_rate:
-            if plan_type == "ماهانه":
-                base_commission = 25.00 * (custom_rate / 100)
-            elif plan_type == "سه_ماهه":
-                base_commission = 65.00 * (custom_rate / 100)
+            # اگر کاربر نرخ سفارشی دارد
+            base_commission = plan_price * (custom_rate / 100)
+        else:
+            # نرخ پیش‌فرض 35%
+            base_commission = plan_price * 0.35
         
         # محاسبه بونوس حجمی
         if is_postgres:
-            cursor.execute("SELECT COUNT(*) FROM commissions WHERE referrer_id = %s AND status = 'pending'", (referrer_id,))
+            cursor.execute("SELECT COUNT(*) FROM commissions WHERE referrer_id = ? AND status = 'pending'", (referrer_id,))
         else:
             cursor.execute("SELECT COUNT(*) FROM commissions WHERE referrer_id = ? AND status = 'pending'", (referrer_id,))
         
@@ -653,7 +658,7 @@ def calculate_commission(referrer_id, referred_user_id, plan_type, transaction_i
                 INSERT INTO commissions 
                 (referrer_id, referred_id, transaction_id, plan_type, 
                  commission_amount, bonus_amount, total_amount, status) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending')
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
             """, (referrer_id, referred_user_id, transaction_id, plan_type,
                   base_commission, bonus_amount, total_amount))
         else:
@@ -667,8 +672,8 @@ def calculate_commission(referrer_id, referred_user_id, plan_type, transaction_i
         
         # به‌روزرسانی وضعیت رفرال
         if is_postgres:
-            cursor.execute("UPDATE referrals SET status = 'completed' WHERE referrer_id = %s AND referred_id = %s", (referrer_id, referred_user_id))
-            cursor.execute("UPDATE users SET total_earned = total_earned + %s WHERE user_id = %s", (total_amount, referrer_id))
+            cursor.execute("UPDATE referrals SET status = 'completed' WHERE referrer_id = ? AND referred_id = ?", (referrer_id, referred_user_id))
+            cursor.execute("UPDATE users SET total_earned = total_earned + ? WHERE user_id = ?", (total_amount, referrer_id))
         else:
             cursor.execute("UPDATE referrals SET status = 'completed' WHERE referrer_id = ? AND referred_id = ?", (referrer_id, referred_user_id))
             cursor.execute("UPDATE users SET total_earned = total_earned + ? WHERE user_id = ?", (total_amount, referrer_id))
@@ -681,7 +686,9 @@ def calculate_commission(referrer_id, referred_user_id, plan_type, transaction_i
             "commission_amount": base_commission,
             "bonus_amount": bonus_amount,
             "total_amount": total_amount,
-            "successful_referrals": successful_referrals
+            "successful_referrals": successful_referrals,
+            "plan_price": plan_price,
+            "commission_rate": custom_rate if custom_rate else 35
         }
         
     except Exception as e:
@@ -699,7 +706,7 @@ def get_referral_stats(user_id):
         if is_postgres:
             cursor.execute("""
                 SELECT referral_code, total_earned, total_paid, custom_commission_rate
-                FROM users WHERE user_id = %s
+                FROM users WHERE user_id = ?
             """, (user_id,))
         else:
             cursor.execute("""
@@ -720,7 +727,7 @@ def get_referral_stats(user_id):
                 SELECT u.username, u.user_id, c.plan_type, c.total_amount, c.created_at, c.status
                 FROM commissions c
                 JOIN users u ON c.referred_id = u.user_id
-                WHERE c.referrer_id = %s
+                WHERE c.referrer_id = ?
                 ORDER BY c.created_at DESC
             """, (user_id,))
         else:
@@ -741,7 +748,7 @@ def get_referral_stats(user_id):
                     COUNT(*) as total_referrals,
                     SUM(CASE WHEN status = 'pending' THEN total_amount ELSE 0 END) as pending_amount,
                     SUM(CASE WHEN status = 'paid' THEN total_amount ELSE 0 END) as paid_amount
-                FROM commissions WHERE referrer_id = %s
+                FROM commissions WHERE referrer_id = ?
             """, (user_id,))
         else:
             cursor.execute("""
@@ -860,14 +867,14 @@ def mark_commission_as_paid(referrer_id, amount):
         cursor.execute("""
             UPDATE commissions 
             SET status = 'paid', paid_at = CURRENT_TIMESTAMP 
-            WHERE referrer_id = %s AND status = 'pending'
+            WHERE referrer_id = ? AND status = 'pending'
         """, (referrer_id,))
         
         # به‌روزرسانی total_paid کاربر
         cursor.execute("""
             UPDATE users 
-            SET total_paid = total_paid + %s 
-            WHERE user_id = %s
+            SET total_paid = total_paid + ? 
+            WHERE user_id = ?
         """, (amount, referrer_id))
         
         conn.commit()
@@ -901,7 +908,7 @@ def update_referral_setting(key, value):
     if is_postgres:
         cursor.execute("""
             INSERT INTO referral_settings (setting_key, setting_value) 
-            VALUES (%s, %s)
+            VALUES (?, ?)
             ON CONFLICT (setting_key) DO UPDATE SET 
             setting_value = EXCLUDED.setting_value,
             updated_at = CURRENT_TIMESTAMP
@@ -931,7 +938,7 @@ def get_tnt_plan_info(plan_name: str):
                 SELECT plan_name, plan_display_name, price_usd, monthly_limit, 
                        hourly_limit, vip_access, is_active
                 FROM tnt_plans 
-                WHERE plan_name = %s AND is_active = true
+                WHERE plan_name = ? AND is_active = true
             """, (plan_name,))
         else:
             cursor.execute("""
@@ -974,7 +981,7 @@ def get_user_tnt_plan(user_id: int):
                 SELECT tnt_plan_type, tnt_plan_start, tnt_plan_end, 
                        tnt_monthly_limit, tnt_hourly_limit
                 FROM users 
-                WHERE user_id = %s
+                WHERE user_id = ?
             """, (user_id,))
         else:
             cursor.execute("""
@@ -1117,7 +1124,7 @@ def get_user_monthly_usage(user_id: int):
             cursor.execute("""
                 SELECT COALESCE(SUM(analysis_count), 0) 
                 FROM tnt_usage_tracking 
-                WHERE user_id = %s AND usage_date >= %s
+                WHERE user_id = ? AND usage_date >= ?
             """, (user_id, start_of_month))
         else:
             cursor.execute("""
@@ -1154,7 +1161,7 @@ def get_user_hourly_usage(user_id: int):
             cursor.execute("""
                 SELECT COALESCE(analysis_count, 0) 
                 FROM tnt_usage_tracking 
-                WHERE user_id = %s AND usage_date = %s AND usage_hour = %s
+                WHERE user_id = ? AND usage_date = ? AND usage_hour = ?
             """, (user_id, current_date, current_hour))
         else:
             cursor.execute("""
@@ -1192,7 +1199,7 @@ def record_tnt_analysis_usage(user_id: int):
             # PostgreSQL: INSERT ... ON CONFLICT
             cursor.execute("""
                 INSERT INTO tnt_usage_tracking (user_id, usage_date, usage_hour, analysis_count)
-                VALUES (%s, %s, %s, 1)
+                VALUES (?, ?, ?, 1)
                 ON CONFLICT (user_id, usage_date, usage_hour) 
                 DO UPDATE SET 
                     analysis_count = tnt_usage_tracking.analysis_count + 1,
@@ -1255,13 +1262,13 @@ def activate_tnt_subscription(user_id: int, plan_name: str, duration_months: int
         if is_postgres:
             cursor.execute("""
                 UPDATE users 
-                SET tnt_plan_type = %s,
-                    tnt_monthly_limit = %s,
-                    tnt_hourly_limit = %s,
-                    tnt_plan_start = %s,
-                    tnt_plan_end = %s,
+                SET tnt_plan_type = ?,
+                    tnt_monthly_limit = ?,
+                    tnt_hourly_limit = ?,
+                    tnt_plan_start = ?,
+                    tnt_plan_end = ?,
                     is_active = true
-                WHERE user_id = %s
+                WHERE user_id = ?
             """, (plan_name, plan_info["monthly_limit"], plan_info["hourly_limit"], 
                   start_date, end_date, user_id))
         else:
@@ -1312,7 +1319,7 @@ def reset_user_to_free_plan(user_id: int):
                     tnt_plan_start = NULL,
                     tnt_plan_end = NULL,
                     is_active = false
-                WHERE user_id = %s
+                WHERE user_id = ?
             """, (user_id,))
         else:
             cursor.execute("""
@@ -1517,7 +1524,7 @@ def auto_migrate_tnt_system():
             if is_postgres:
                 cursor.execute("""
                     INSERT INTO tnt_plans (plan_name, plan_display_name, price_usd, monthly_limit, hourly_limit, vip_access)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     ON CONFLICT (plan_name) DO NOTHING
                 """, (plan_name, display_name, price, monthly_limit, hourly_limit, vip_access))
             else:

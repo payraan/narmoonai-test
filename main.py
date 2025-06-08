@@ -19,7 +19,7 @@ from handlers.handlers import (
     start, handle_main_menu, show_market_selection, handle_market_selection,
     show_timeframes, handle_timeframe_selection, show_strategy_selection,
     handle_strategy_selection, receive_images, cancel,
-    show_narmoon_products, show_ai_features, show_faq, show_faq_page2, usage_guide,  # ✅ show_faq_page2 اضافه شد
+    show_narmoon_products, show_ai_features, show_faq, show_faq_page2, usage_guide,
     terms_and_conditions, terms_and_conditions_page2, terms_and_conditions_page3, subscription_plans, support_contact,
     show_referral_panel, handle_referral_copy_link, handle_referral_details,
     handle_tnt_plan_selection,
@@ -30,10 +30,11 @@ from handlers.crypto_handlers import (
     crypto_menu, dex_menu, coin_menu,
     handle_dex_option, handle_coin_option,
     handle_trending_options, handle_treasury_options,
-    process_user_input
+    process_user_input, handle_tnt_analysis_request,
+    handle_trending_coins_list
 )
 
-from admin.commands import admin_activate, admin_user_info, admin_stats, admin_broadcast
+from admin.commands import admin_activate, admin_user_info, admin_stats, admin_broadcast, admin_referral_stats
 
 # Configure logging
 logging.basicConfig(
@@ -129,7 +130,6 @@ def main():
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(subscription_plans, pattern="^subscription$"),
                 CallbackQueryHandler(handle_main_menu),  # handlers عمومی بعد از specific ones
-                CallbackQueryHandler(debug_callback_handler),  # در آخر
             ],
             CRYPTO_MENU: [
                 CallbackQueryHandler(dex_menu, pattern="^narmoon_dex$"),
@@ -140,6 +140,7 @@ def main():
             DEX_MENU: [
                 CallbackQueryHandler(handle_dex_option, pattern="^dex_"),
                 CallbackQueryHandler(handle_trending_options, pattern="^trending_"),
+                CallbackQueryHandler(handle_tnt_analysis_request, pattern="^tnt_analysis_crypto$"),
                 CallbackQueryHandler(dex_menu, pattern="^narmoon_dex$"),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$")
@@ -152,6 +153,7 @@ def main():
             ],
             COIN_MENU: [
                 CallbackQueryHandler(handle_coin_option, pattern="^coin_"),
+                CallbackQueryHandler(handle_trending_coins_list, pattern="^trending_coins_list$"),
                 CallbackQueryHandler(handle_treasury_options, pattern="^treasury_"),
                 CallbackQueryHandler(coin_menu, pattern="^narmoon_coin$"),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
@@ -245,6 +247,7 @@ def main():
     app.add_handler(CommandHandler("userinfo", admin_user_info))
     app.add_handler(CommandHandler("stats", admin_stats))
     app.add_handler(CommandHandler("broadcast", admin_broadcast))
+    app.add_handler(CommandHandler("referralstats", admin_referral_stats))
     # دستورات مدیریتی TNT
     from admin.commands import admin_activate_tnt, admin_tnt_stats, admin_user_tnt_info, admin_clean_database, admin_db_stats, admin_reset_db
     app.add_handler(CommandHandler("activatetnt", admin_activate_tnt))
