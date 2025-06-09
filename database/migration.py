@@ -1,10 +1,11 @@
 from sqlalchemy import text
-from .connection import get_session
+from .connection import get_db_session
 
 def run_migration():
     """اجرای migration برای اضافه کردن column های جدید"""
-    session = get_session()
     try:
+        session = get_db_session()
+        
         # اضافه کردن column های جدید اگر وجود نداشتن
         migration_queries = [
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS tnt_plan_type VARCHAR(20) DEFAULT 'free'",
@@ -26,8 +27,10 @@ def run_migration():
         return True
         
     except Exception as e:
-        session.rollback()
+        if 'session' in locals():
+            session.rollback()
         print(f"❌ Migration failed: {e}")
         return False
     finally:
-        session.close()
+        if 'session' in locals():
+            session.close()
