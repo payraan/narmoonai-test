@@ -618,11 +618,11 @@ class ReferralRepository:
             # Get commission statistics
             commission_stats = session.query(
                 func.count(Commission.id).label('total_referrals'),
-                func.sum(func.case(
-                    (Commission.status == 'pending', Commission.total_amount), 0
+                func.sum(func.case([
+                    (Commission.status == 'pending', Commission.total_amount)], else_=0
                 )).label('pending_amount'),
-                func.sum(func.case(
-                    (Commission.status == 'paid', Commission.total_amount), 0
+                func.sum(func.case([
+                    (Commission.status == 'paid', Commission.total_amount)], else_=0
                 )).label('paid_amount')
             ).filter(Commission.referrer_id == user_id).first()
             
@@ -660,8 +660,8 @@ class ReferralRepository:
                 User.total_earned,
                 User.total_paid,
                 func.count(Commission.id).label('total_referrals'),
-                func.sum(func.case(
-                    (Commission.status == 'pending', Commission.total_amount), 0
+                func.sum(func.case([
+                    (Commission.status == 'pending', Commission.total_amount)], else_=0
                 )).label('pending_amount')
             ).outerjoin(
                 Commission, User.user_id == Commission.referrer_id
@@ -677,11 +677,11 @@ class ReferralRepository:
                 func.count(func.distinct(Commission.referrer_id)).label('total_referrers'),
                 func.count(Commission.id).label('total_commissions'),
                 func.sum(Commission.total_amount).label('total_commissions_amount'),
-                func.sum(func.case(
-                    (Commission.status == 'pending', Commission.total_amount), 0
+                func.sum(func.case([
+                    (Commission.status == 'pending', Commission.total_amount)], else_=0
                 )).label('pending_payments'),
-                func.sum(func.case(
-                    (Commission.status == 'paid', Commission.total_amount), 0
+                func.sum(func.case([
+                    (Commission.status == 'paid', Commission.total_amount)], else_=0
                 )).label('paid_amount')
             ).first()
             
