@@ -12,8 +12,7 @@ from config.constants import (
     CRYPTO_MENU, DEX_MENU, DEX_SUBMENU, COIN_MENU
 )
 
-from database import init_db, db_manager
-from database.migration import run_migration
+from database.operations import init_db, auto_migrate_tnt_system
 
 # Import handlers
 from handlers.handlers import (
@@ -92,16 +91,15 @@ def main():
         # ایجاد پایگاه داده
         print("🔧 Initializing database...")
         init_db()
-        run_migration()  # اجرای migration
-        # auto_migrate_tnt_system()  # Disabled for SQLAlchemy
+        auto_migrate_tnt_system()
         print("✅ Database ready!")
         
-        # اجرای Migration ایمن - Disabled for SQLAlchemy
-        # print("🔄 Running safe migration...")
-        # if safe_migration():
-        #     print("✅ Migration completed!")
-        # else:
-        #     print("⚠️ Migration had issues but continuing...")
+        # اجرای Migration ایمن
+        print("🔄 Running safe migration...")
+        if safe_migration():
+            print("✅ Migration completed!")
+        else:
+            print("⚠️ Migration had issues but continuing...")
         
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
