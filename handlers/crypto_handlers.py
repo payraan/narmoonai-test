@@ -11,7 +11,7 @@ from config.constants import (
     CRYPTO_MENU, DEX_MENU, COIN_MENU, DEX_SUBMENU, COIN_SUBMENU,
     MAIN_MENU
 )
-from database.operations import check_subscription, check_user_api_limit, log_api_request
+from database import check_subscription, check_user_api_limit, log_api_request
 import asyncio
 from utils.helpers import format_token_price
 def escape_markdown_v2(text):
@@ -457,7 +457,7 @@ async def handle_tnt_analysis_request(update: Update, context: ContextTypes.DEFA
     user_id = update.effective_user.id
     
     # بررسی محدودیت TNT
-    from database.operations import check_tnt_analysis_limit
+    from database import check_tnt_analysis_limit
     limit_check = check_tnt_analysis_limit(user_id)
     
     if limit_check["allowed"]:

@@ -9,7 +9,7 @@ from config.constants import (
     MARKETS, TIMEFRAMES, EXPECTED_TIMEFRAMES, STRATEGIES, STRATEGY_CATEGORIES
 )
 from config.settings import NARMOON_DEX_LINK, NARMOON_COIN_LINK, TUTORIAL_VIDEO_LINK, SOLANA_WALLETS
-from database.operations import check_subscription, register_user, activate_subscription
+from database import check_subscription, register_user, activate_subscription
 from services.ai_service import analyze_chart_images
 from utils.helpers import load_static_texts
 # بارگزاری متن‌های ثابت
@@ -67,7 +67,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         referral_param = context.args[0]
         if referral_param.startswith("REF"):
             # پردازش رفرال
-            from database.operations import create_referral_relationship
+            from database import create_referral_relationship
             result = create_referral_relationship(referral_param, user_id)
             
             if result.get("success"):
@@ -161,7 +161,7 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await show_referral_panel(update, context)
     elif query.data == "analyze_charts":
         user_id = update.effective_user.id
-        from database.operations import check_tnt_analysis_limit
+        from database import check_tnt_analysis_limit
         
         limit_check = check_tnt_analysis_limit(user_id)
         
@@ -334,7 +334,7 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
     # Import توابع جدید TNT
-    from database.operations import check_tnt_analysis_limit, record_tnt_analysis_usage
+    from database import check_tnt_analysis_limit, record_tnt_analysis_usage
     
     # بررسی محدودیت
     limit_check = check_tnt_analysis_limit(user_id)
@@ -916,7 +916,7 @@ async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     
     # Import referral functions
-    from database.operations import get_referral_stats
+    from database import get_referral_stats
     
     try:
         # دریافت آمار رفرال کاربر
@@ -1024,7 +1024,7 @@ async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_
     
     user_id = update.effective_user.id
     
-    from database.operations import get_referral_stats
+    from database import get_referral_stats
     stats = get_referral_stats(user_id)
     
     if not stats.get('success'):

@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from config.settings import ADMIN_ID
-from database.operations import activate_subscription, get_user_info, get_user_api_stats, get_connection
+from database import activate_subscription, get_user_info, get_user_api_stats, get_connection
 
 async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """فعال‌سازی اشتراک کاربر توسط ادمین (فرمت: /activate user_id duration plan_type)"""
@@ -28,7 +28,7 @@ async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         end_date = activate_subscription(user_id, duration, plan_type)
 
         # ⭐ اضافه: محاسبه کمیسیون رفرال ⭐
-        from database.operations import get_connection, calculate_commission
+        from database import get_connection, calculate_commission
         
         # بررسی اینکه آیا این کاربر از طریق رفرال آمده
         try:
@@ -292,7 +292,7 @@ async def admin_activate_tnt(update: Update, context: ContextTypes.DEFAULT_TYPE)
         duration = int(args[2])
 
         # اطمینان از وجود کاربر
-        from database.operations import register_user, activate_tnt_subscription
+        from database import register_user, activate_tnt_subscription
         register_user(user_id, f"admin_user_{user_id}")
 
         # فعال‌سازی اشتراک TNT
@@ -300,7 +300,7 @@ async def admin_activate_tnt(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         if result["success"]:
             # محاسبه کمیسیون رفرال (همان کد قبلی)
-            from database.operations import get_connection, calculate_commission
+            from database import get_connection, calculate_commission
             
             try:
                 conn = get_connection()
@@ -393,7 +393,7 @@ async def admin_tnt_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
     
-    from database.operations import get_connection
+    from database import get_connection
     from datetime import datetime, date
     
     try:
@@ -537,7 +537,7 @@ async def admin_user_tnt_info(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         user_id = int(args[0])
         
-        from database.operations import get_user_tnt_usage_stats
+        from database import get_user_tnt_usage_stats
         
         # دریافت آمار کامل
         stats = get_user_tnt_usage_stats(user_id)
@@ -594,7 +594,7 @@ async def admin_clean_database(update: Update, context: ContextTypes.DEFAULT_TYP
 
         await update.message.reply_text("🧹 شروع پاک‌سازی دیتابیس...")
 
-        from database.operations import get_connection
+        from database import get_connection
         
         conn = get_connection()
         cursor = conn.cursor()
@@ -693,7 +693,7 @@ async def admin_db_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     try:
-        from database.operations import get_connection
+        from database import get_connection
         
         conn = get_connection()
         cursor = conn.cursor()
@@ -732,7 +732,7 @@ async def admin_reset_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        from database.operations import get_connection
+        from database import get_connection
         conn = get_connection()
         cursor = conn.cursor()
         
@@ -762,7 +762,7 @@ async def admin_referral_stats(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     
     try:
-        from database.operations import get_admin_referral_stats
+        from database import get_admin_referral_stats
         
         await update.message.reply_text("🔄 در حال دریافت آمار رفرال...")
         
