@@ -6,36 +6,47 @@ from config.settings import OPENAI_API_KEY
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 def analyze_chart_images(images, strategy_prompt):
-    """تحلیل تصاویر چارت با استفاده از OpenAI"""
-    images_content = []
+    """تحلیل تصاویر چارت با استفاده از OpenAI Vision API"""
     
+    # آماده‌سازی محتوای پیام
+    message_content = [
+        {
+            "type": "text",
+            "text": strategy_prompt
+        }
+    ]
+    
+    # اضافه کردن تصاویر
     for img_bytes, ext in images:
-        # تعیین mime type
-        if ext in ["jpeg", "jpg"]:
-            mime = "jpeg"
-        elif ext == "png":
-            mime = "png"
-        elif ext == "webp":
-            mime = "webp"
+        # تعیین mime type صحیح
+        if ext.lower() in ["jpeg", "jpg"]:
+            mime_type = "image/jpeg"
+        elif ext.lower() == "png":
+            mime_type = "image/png"
+        elif ext.lower() == "webp":
+            mime_type = "image/webp"
+        elif ext.lower() == "gif":
+            mime_type = "image/gif"
         else:
-            mime = "jpeg"
+            mime_type = "image/jpeg"  # پیش‌فرض
         
-        b64img = base64.b64encode(img_bytes).decode('utf-8')
-        images_content.append({
+        # تبدیل به base64
+        b64_image = base64.b64encode(img_bytes).decode('utf-8')
+        
+        # اضافه کردن تصویر به پیام
+        message_content.append({
             "type": "image_url",
             "image_url": {
-                "url": f"data:image/{mime};base64,{b64img}",
+                "url": f"data:{mime_type};base64,{b64_image}",
                 "detail": "high"
             }
         })
     
-    # پیامی با چند تصویر
+    # ساخت پیام نهایی
     messages = [
         {
             "role": "user",
-            "content": [
-                {"type": "text", "text": strategy_prompt}
-            ] + images_content
+            "content": message_content
         }
     ]
     
@@ -47,5 +58,6 @@ def analyze_chart_images(images, strategy_prompt):
             temperature=0.2
         )
         return response.choices[0].message.content
+        
     except Exception as e:
-        raise Exception(f"خطا در تحلیل تصاویر: {str(e)}")
+        print(f"OpenAI API Error: {str(e)}")
