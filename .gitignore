@@ -35,3 +35,4 @@ test_*.py
 quick_*.py
 *_backup.*
 handl
+*.backup
