@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from datetime import datetime
 from config.constants import (
-    MAIN_MENU, SELECTING_MARKET, SELECTING_TIMEFRAME,
+    MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
     SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS,
     MARKETS, TIMEFRAMES, EXPECTED_TIMEFRAMES, STRATEGIES, STRATEGY_CATEGORIES
 )
@@ -206,6 +206,65 @@ async def show_market_selection(update: Update, context: ContextTypes.DEFAULT_TY
     
     return SELECTING_MARKET
 
+async def show_analysis_type_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش منوی انتخاب نوع تحلیل (کلاسیک/مدرن)"""
+    
+    analysis_buttons = [
+        [InlineKeyboardButton("📊 تحلیل کلاسیک", callback_data="analysis_classic")],
+        [InlineKeyboardButton("🔬 تحلیل مدرن", callback_data="analysis_modern")],
+        [
+            InlineKeyboardButton("🔙 بازگشت به انتخاب بازار", callback_data="analyze_charts"),
+            InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")
+        ]
+    ]
+    
+    analysis_markup = InlineKeyboardMarkup(analysis_buttons)
+    
+    # نمایش بازار انتخابی
+    selected_market = context.user_data.get('selected_market', 'نامشخص')
+    market_name = MARKETS.get(selected_market, 'نامشخص')
+    
+    await update.callback_query.edit_message_text(
+        f"📊 بازار انتخابی: {market_name}\n\n"
+        f"🎯 لطفاً نوع تحلیل مورد نظر خود را انتخاب کنید:\n\n"
+        f"📊 **تحلیل کلاسیک:** سه تایم‌فریم، تحلیل جامع\n"
+        f"🔬 **تحلیل مدرن:** یک تصویر، تحلیل سریع",
+        reply_markup=analysis_markup,
+        parse_mode='Markdown'
+    )
+    
+    return SELECTING_ANALYSIS_TYPE
+
+async def handle_analysis_type_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """پردازش انتخاب نوع تحلیل"""
+    query = update.callback_query
+    await query.answer()
+    
+    analysis_type = query.data.replace("analysis_", "")
+    context.user_data['selected_analysis_type'] = analysis_type
+    
+    if analysis_type == "classic":
+        # تحلیل کلاسیک: هدایت به انتخاب تایم‌فریم
+        return await show_timeframes(update, context)
+    
+    elif analysis_type == "modern":
+        # تحلیل مدرن: مستقیم به انتظار تصویر
+        await query.edit_message_text(
+            "🔬 **تحلیل مدرن انتخاب شد**\n\n"
+            "📸 لطفاً **یک تصویر** از نمودار TradingView ارسال کنید.\n\n"
+            "💡 برای لغو تحلیل، دستور /cancel را بفرست.",
+            parse_mode='Markdown'
+        )
+        
+        # تنظیم متغیرهای لازم برای تحلیل مدرن
+        context.user_data['selected_strategy'] = 'narmoon_ai'  # فعلاً همان استراتژی
+        context.user_data['expected_images'] = 1  # فقط یک تصویر
+        context.user_data['received_images'] = []
+        
+        return WAITING_IMAGES
+    
+    return SELECTING_ANALYSIS_TYPE
+
 async def handle_market_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """مدیریت انتخاب بازار"""
     query = update.callback_query
@@ -215,8 +274,8 @@ async def handle_market_selection(update: Update, context: ContextTypes.DEFAULT_
     market_key = query.data.replace("market_", "")
     context.user_data['selected_market'] = market_key
     
-    # انتقال به انتخاب تایم فریم
-    return await show_timeframes(update, context)
+    # انتقال به انتخاب نوع تحلیل
+    return await show_analysis_type_selection(update, context)
 
 async def show_timeframes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش لیست تایم‌فریم‌ها برای انتخاب"""
@@ -1097,7 +1156,31 @@ async def show_tnt_payment_info(update: Update, context: ContextTypes.DEFAULT_TY
     """نمایش اطلاعات پرداخت TNT"""
     try:
         from config.settings import SOLANA_WALLETS
-        import random
+        import asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, ConversationHandler
+from datetime import datetime
+from config.constants import (
+    MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
+    SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS,
+    MARKETS, TIMEFRAMES, EXPECTED_TIMEFRAMES, STRATEGIES, STRATEGY_CATEGORIES
+)
+from config.settings import NARMOON_DEX_LINK, NARMOON_COIN_LINK, TUTORIAL_VIDEO_LINK, SOLANA_WALLETS
+from database import check_subscription, register_user, activate_subscription
+from services.ai_service import analyze_chart_images
+from utils.helpers import load_static_textsimport asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, ConversationHandler
+from datetime import datetime
+from config.constants import (
+    MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
+    SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS,
+    MARKETS, TIMEFRAMES, EXPECTED_TIMEFRAMES, STRATEGIES, STRATEGY_CATEGORIES
+)
+from config.settings import NARMOON_DEX_LINK, NARMOON_COIN_LINK, TUTORIAL_VIDEO_LINK, SOLANA_WALLETS
+from database import check_subscription, register_user, activate_subscription
+from services.ai_service import analyze_chart_images
+from utils.helpers import load_static_textsimport random
         
         # انتخاب تصادفی کیف پول
         wallet_address = random.choice(SOLANA_WALLETS)
