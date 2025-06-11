@@ -1,10 +1,11 @@
 # وضعیت‌های ConversationHandler
 MAIN_MENU = 0
 SELECTING_MARKET = 1
-SELECTING_TIMEFRAME = 2
-SELECTING_STRATEGY = 3
-WAITING_IMAGES = 4
-PROCESSING_ANALYSIS = 5
+SELECTING_ANALYSIS_TYPE = 2  # جدید ✨
+SELECTING_TIMEFRAME = 3       # تغییر عدد
+SELECTING_STRATEGY = 4        # تغییر عدد  
+WAITING_IMAGES = 5           # تغییر عدد
+PROCESSING_ANALYSIS = 6      # تغییر عدد
 
 # وضعیت‌های جدید برای منوی رمزارز
 CRYPTO_MENU = 100
@@ -83,4 +84,10 @@ USER_LIMITS = {
         'features': 'all',
         'cache_time': 60  # 1 دقیقه
     }
+}
+
+# === انواع تحلیل ===
+ANALYSIS_TYPES = {
+    'classic': '📊 تحلیل کلاسیک',
+    'modern': '🔬 تحلیل مدرن'
 }

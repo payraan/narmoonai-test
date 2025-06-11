@@ -7,7 +7,7 @@ from telegram.error import Conflict
 
 from config.settings import TELEGRAM_TOKEN
 from config.constants import (
-    MAIN_MENU, SELECTING_MARKET, SELECTING_TIMEFRAME,
+    MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
     SELECTING_STRATEGY, WAITING_IMAGES,
     CRYPTO_MENU, DEX_MENU, DEX_SUBMENU, COIN_MENU
 )
@@ -163,6 +163,11 @@ def main():
             ],
             SELECTING_MARKET: [
                 CallbackQueryHandler(handle_market_selection, pattern='^market_'),
+                CallbackQueryHandler(start, pattern="^main_menu$"),
+                CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$")
+            ],
+            SELECTING_ANALYSIS_TYPE: [
+                CallbackQueryHandler(handle_analysis_type_selection, pattern='^analysis_'),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$")
             ],
