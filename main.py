@@ -23,7 +23,7 @@ from handlers.handlers import (
     show_narmoon_products, show_ai_features, show_faq, show_faq_page2, usage_guide,
     terms_and_conditions, terms_and_conditions_page2, terms_and_conditions_page3, subscription_plans, support_contact,
     show_referral_panel, handle_referral_copy_link, handle_referral_details,
-    handle_tnt_plan_selection,
+    handle_tnt_plan_selection, handle_analysis_type_selection,
     debug_callback_handler
 )
 

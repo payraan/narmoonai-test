@@ -1155,32 +1155,6 @@ async def handle_tnt_plan_selection(update: Update, context: ContextTypes.DEFAUL
 async def show_tnt_payment_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش اطلاعات پرداخت TNT"""
     try:
-        from config.settings import SOLANA_WALLETS
-        import asyncio
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler
-from datetime import datetime
-from config.constants import (
-    MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
-    SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS,
-    MARKETS, TIMEFRAMES, EXPECTED_TIMEFRAMES, STRATEGIES, STRATEGY_CATEGORIES
-)
-from config.settings import NARMOON_DEX_LINK, NARMOON_COIN_LINK, TUTORIAL_VIDEO_LINK, SOLANA_WALLETS
-from database import check_subscription, register_user, activate_subscription
-from services.ai_service import analyze_chart_images
-from utils.helpers import load_static_textsimport asyncio
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler
-from datetime import datetime
-from config.constants import (
-    MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
-    SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS,
-    MARKETS, TIMEFRAMES, EXPECTED_TIMEFRAMES, STRATEGIES, STRATEGY_CATEGORIES
-)
-from config.settings import NARMOON_DEX_LINK, NARMOON_COIN_LINK, TUTORIAL_VIDEO_LINK, SOLANA_WALLETS
-from database import check_subscription, register_user, activate_subscription
-from services.ai_service import analyze_chart_images
-from utils.helpers import load_static_textsimport random
         
         # انتخاب تصادفی کیف پول
         wallet_address = random.choice(SOLANA_WALLETS)
