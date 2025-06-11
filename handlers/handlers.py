@@ -263,7 +263,7 @@ async def handle_analysis_type_selection(update: Update, context: ContextTypes.D
         
         # ⭐ اضافه کردن strategy_prompt (این خط کلیدی است!)
         from resources.prompts.strategies import STRATEGY_PROMPTS
-        context.user_data['strategy_prompt'] = STRATEGY_PROMPTS['narmoon_ai']
+        context.user_data['strategy_prompt'] = STRATEGY_PROMPTS['modern_vision']
 
         return WAITING_IMAGES
     
