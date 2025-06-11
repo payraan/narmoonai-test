@@ -261,6 +261,10 @@ async def handle_analysis_type_selection(update: Update, context: ContextTypes.D
         context.user_data['expected_images'] = 1  # فقط یک تصویر
         context.user_data['received_images'] = []
         
+        # ⭐ اضافه کردن strategy_prompt (این خط کلیدی است!)
+        from resources.prompts.strategies import STRATEGY_PROMPTS
+        context.user_data['strategy_prompt'] = STRATEGY_PROMPTS['narmoon_ai']
+
         return WAITING_IMAGES
     
     return SELECTING_ANALYSIS_TYPE
