@@ -493,7 +493,7 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # اگر همه چیز OK بود، ادامه پردازش تصویر
     file = None
     ext = "jpeg"
-    
+
     # پشتیبانی از عکس یا داکیومنت عکس
     if update.message.photo:
         file = await update.message.photo[-1].get_file()
@@ -503,27 +503,41 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("فقط عکس ارسال کن رفیق! 😅")
         return WAITING_IMAGES
-    
+
     photo_bytes = await file.download_as_bytearray()
     context.user_data['received_images'].append((photo_bytes, ext))
-    
+
     received = len(context.user_data['received_images'])
-    expected = 3
-    
+
+    # تعیین تعداد مورد انتظار بر اساس نوع تحلیل
+    analysis_type = context.user_data.get('selected_analysis_type', 'classic')
+    if analysis_type == 'modern':
+        expected = 1  # تحلیل مدرن: فقط 1 تصویر
+    else:
+        expected = 3  # تحلیل کلاسیک: 3 تصویر
+
     if received < expected:
         # نمایش پیشرفت به همراه آمار باقی‌مانده
         remaining_monthly = limit_check.get("remaining_monthly", "نامشخص")
         remaining_hourly = limit_check.get("remaining_hourly", "نامشخص")
-        
-        progress_message = f"عالی! {expected-received} عکس دیگه از تایم‌فریم‌های بعدی رو بفرست 🤩\n\n"
+
+        # نمایش پیام progress بر اساس نوع تحلیل
+        if analysis_type == 'modern':
+            progress_message = f"✅ تصویر دریافت شد! در حال آماده‌سازی تحلیل مدرن...\n\n"
+        else:   
+            progress_message = f"عالی! {expected-received} عکس دیگه از تایم‌فریم‌های بعدی رو بفرست 🤩\n\n"
+    
         progress_message += f"📊 باقی‌مانده ماهانه: {remaining_monthly} تحلیل\n"
         progress_message += f"⏰ باقی‌مانده ساعتی: {remaining_hourly} تحلیل"
-        
+    
         await update.message.reply_text(progress_message)
         return WAITING_IMAGES
-    
-    # وقتی هر سه عکس رسید...
-    await update.message.reply_text("🔥 در حال تحلیل نمودارها با استراتژی انتخابی شما... ⏳")
+
+    # پیام تحلیل بر اساس نوع
+    if analysis_type == 'modern':
+        await update.message.reply_text("🔬 در حال تحلیل مدرن نمودار شما... ⏳")
+    else:
+        await update.message.reply_text("🔥 در حال تحلیل چند تایم‌فریمی نمودارها... ⏳")
     
     try:
         # ثبت استفاده قبل از تحلیل
