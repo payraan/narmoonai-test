@@ -262,33 +262,39 @@ def init_db():
     conn.close()
     print("✅ Database initialized successfully!")
 
-def check_subscription(user_id):
-    """بررسی وضعیت اشتراک کاربر - PostgreSQL Compatible"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT subscription_end, is_active FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone()
-    
-    if not result:
-        conn.close()
+def check_subscription(user_id: int):
+    """
+    وضعیت اشتراک کاربر را با کوئری سازگار با هر دو دیتابیس بررسی می‌کند.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # --- این بخش اصلاح شد ---
+        # تشخیص نوع دیتابیس و انتخاب placeholder مناسب
+        is_postgres = hasattr(conn, 'encoding') # یک روش ساده برای تشخیص psycopg2
+
+        if is_postgres:
+            query = "SELECT subscription_end, is_active FROM users WHERE user_id = %s"
+            cursor.execute(query, (user_id,))
+        else:
+            query = "SELECT subscription_end, is_active FROM users WHERE user_id = ?"
+            cursor.execute(query, (user_id,))
+        # -----------------------
+
+        result = cursor.fetchone()
+        if result:
+            end_date, is_active = result
+            if is_active and end_date and datetime.date.today() <= end_date:
+                return True
         return False
-    
-    end_date_str, is_active = result
-    if not is_active or not end_date_str:
-        conn.close()
+    except Exception as e:
+        print(f"Error checking subscription for user {user_id}: {e}")
         return False
-    
-    # تبدیل به datetime اگر string باشد
-    if isinstance(end_date_str, str):
-        end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d').date()
-    else:
-        end_date = end_date_str
-    
-    today = datetime.date.today()
-    
-    conn.close()
-    return end_date >= today
+    finally:
+        if conn:
+            conn.close()
 
 def generate_referral_code(user_id):
     """تولید کد رفرال منحصر به فرد"""
