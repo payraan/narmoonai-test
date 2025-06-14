@@ -225,89 +225,54 @@ def main():
     app.add_handler(CommandHandler("faq", show_faq))
     app.add_handler(CommandHandler("support", support_contact))
 
-    # Command handlers wrapper functions
-    async def trending_wrapper(update, context):
-        update.callback_query = type('obj', (object,), {
-            'data': 'trending_all_networks',
-            'answer': lambda: None,
-            'edit_message_text': update.message.reply_text
-        })()
-        await handle_trending_options(update, context)
+# Command handlers wrapper functions (خارج از تابع main)
+async def trending_wrapper(update, context):
+    update.callback_query = type('obj', (object,), {
+        'data': 'trending_all_networks',
+        'answer': lambda: None,
+        'edit_message_text': update.message.reply_text
+    })()
+    await handle_trending_options(update, context)
+    
+async def dex_wrapper(update, context):
+    await dex_menu(update, context)
+    
+async def coin_wrapper(update, context):
+    await coin_menu(update, context)
+    
+async def tokeninfo_wrapper(update, context): 
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    await update.message.reply_text(
+        "🔍 برای اطلاعات توکن، ابتدا به منوی دکس بروید:",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
+        ]])
+    )
 
-    async def dex_wrapper(update, context):
-        await dex_menu(update, context)
-
-    async def coin_wrapper(update, context):
-        await coin_menu(update, context)
-
-    async def tokeninfo_wrapper(update, context):
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        await update.message.reply_text(
-            "🔍 برای اطلاعات توکن، ابتدا به منوی دکس بروید:",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
-            ]])
-        )
-
-    async def holders_wrapper(update, context):
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        await update.message.reply_text(
-            "👥 برای بررسی هولدرها، ابتدا به منوی دکس بروید:",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
-            ]])
-        )
-
-    # اضافه کردن command handlers
-    app.add_handler(CommandHandler("dex", dex_wrapper))
-    app.add_handler(CommandHandler("coin", coin_wrapper))
-    app.add_handler(CommandHandler("trending", trending_wrapper))
-    app.add_handler(CommandHandler("hotcoins", coin_wrapper))
-    app.add_handler(CommandHandler("tokeninfo", tokeninfo_wrapper))
-    app.add_handler(CommandHandler("holders", holders_wrapper))
-
-    # دستورات مدیریتی
-    app.add_handler(CommandHandler("activate", admin_activate))
-    # app.add_handler(CommandHandler("adminhelp", admin_help))  # موقتاً غیرفعال
-    app.add_handler(CommandHandler("userinfo", admin_user_info))
-    app.add_handler(CommandHandler("stats", admin_stats))
-    app.add_handler(CommandHandler("broadcast", admin_broadcast))
-    app.add_handler(CommandHandler("referralstats", admin_referral_stats))
-    # دستورات مدیریتی TNT
-    from admin.commands import admin_activate_tnt, admin_tnt_stats, admin_user_tnt_info, admin_clean_database, admin_db_stats, admin_reset_db
-    app.add_handler(CommandHandler("activatetnt", admin_activate_tnt))
-    app.add_handler(CommandHandler("tntstats", admin_tnt_stats))
-    app.add_handler(CommandHandler("usertnt", admin_user_tnt_info))
-    app.add_handler(CommandHandler("cleandb", admin_clean_database))
-    app.add_handler(CommandHandler("dbstats", admin_db_stats))
-    app.add_handler(CommandHandler("resetdb", admin_reset_db))
+async def holders_wrapper(update, context):
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    await update.message.reply_text(
+        "👥 برای بررسی هولدرها، ابتدا به منوی دکس بروید:",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")
+        ]])
+    )
 
     print("🤖 ربات نارموون آماده است!")
     print(f"✅ توکن: {TELEGRAM_TOKEN[:10]}...")
     print("📊 برای توقف: Ctrl+C")
-    
-    # اجرای bot با مدیریت خطای بهبود یافته
+        
     try:
         print("🚀 Starting bot polling...")
         app.run_polling()
-
-    except Conflict:
-        print("❌ Bot conflict detected!")
-        print("🔧 Another bot instance is running. Please:")
-        print("   1. Stop all other Railway services")
-        print("   2. Run: python bot_conflict_resolver.py")
-        print("   3. Wait 10 seconds and restart")
     except KeyboardInterrupt:
         print("\n🛑 Bot stopped by user")
     except Exception as e:
         print(f"❌ Bot crashed: {e}")
-        print("🔧 Check logs for more details")
-
+    
 if __name__ == "__main__":
     print("🌟 Narmoon Trading Bot")
     print("=" * 30)
     main()
     print("=" * 30)
     print("👋 Goodbye!")
-
-

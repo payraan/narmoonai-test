@@ -82,3 +82,50 @@ def analyze_chart_images(images, strategy_prompt):
             return "خطا در مدل هوش مصنوعی. لطفاً بعداً امتحان کنید."
         else:
             return f"خطا در تحلیل: {error_msg}"
+
+# این تابع جدید را به انتهای فایل ai_service.py اضافه کنید
+
+async def get_coach_response(user_prompt: str, image_url: str = None) -> str:
+    """
+    دریافت پاسخ از ChatGPT با شخصیت "مربی ترید".
+    این تابع قابلیت دریافت متن و تصویر را دارد.
+    """
+    # تعریف شخصیت و دستورالعمل‌های مربی ترید
+    system_prompt = """
+    You are a professional, risk-averse trading coach and mentor. Your goal is to educate and empower the user, not to provide financial signals.
+    - NEVER give direct buy/sell commands.
+    - Instead of giving answers, ask guiding questions to make the user think. For example: "What does your trading strategy say here?" or "Have you considered the risk-to-reward ratio?".
+    - Always remind the user of risk management and market uncertainty.
+    - If you analyze a chart image, explain the patterns, indicators, and potential scenarios (both bullish and bearish).
+    - At the end of every message, include this disclaimer:
+
+    ---
+    _Disclaimer: I am an AI coach, not a financial advisor. This is not financial advice. All trading decisions and risks are your own._
+    """
+
+    messages = [
+        {"role": "system", "content": system_prompt}
+    ]
+
+    # ساختار پیام بر اساس وجود تصویر
+    if image_url:
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "text", "text": user_prompt},
+                {"type": "image_url", "image_url": {"url": image_url}}
+            ]
+        })
+    else:
+        messages.append({"role": "user", "content": user_prompt})
+
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            max_tokens=1000
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Error getting response from OpenAI for Trading Coach: {e}")
+        return "❌ متاسفانه در ارتباط با هوش مصنوعی خطایی رخ داد. لطفاً لحظاتی دیگر دوباره تلاش کنید."
