@@ -617,14 +617,14 @@ class ReferralRepository:
             
             # Get commission statistics
             commission_stats = session.query(
-                func.count(Commission.id).label('total_referrals'),
-                func.coalesce(func.sum(
-                    case((Commission.status == 'pending', Commission.total_amount), else_=0)
-                ), 0).label('pending_amount'),
-                func.coalesce(func.sum(
-                    case((Commission.status == 'paid', Commission.total_amount), else_=0)
-                ), 0).label('paid_amount')
-            ).filter(Commission.referrer_id == user_id).first()
+                func.count(Commission.id).label('total_referrals'),
+                func.coalesce(func.sum(
+                case((Commission.status == 'pending', Commission.total_amount), else_=0)
+                ), 0).label('pending_amount'),
+                func.coalesce(func.sum(
+                case((Commission.status == 'paid', Commission.total_amount), else_=0)
+                ), 0).label('paid_amount')
+            ).filter(Commission.referrer_id == user_id).first()
             
             return {
                 "success": True,
