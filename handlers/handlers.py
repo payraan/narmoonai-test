@@ -1246,21 +1246,21 @@ async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
     """Debug handler برای تمام callback ها"""
     query = update.callback_query
     await query.answer()
-    
+
     callback_data = query.data
     user_id = update.effective_user.id
     user_name = update.effective_user.username or "Anonymous"
-    
+
     print(f"🔍 DEBUG: Received callback: '{callback_data}'")
     print(f"👤 DEBUG: User ID: {user_id}, Username: @{user_name}")
     print(f"⏰ DEBUG: Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
+
     try:
         if callback_data.startswith("copy_link_"):
             print("🎯 DEBUG: Copy link detected - calling handler")
             return await handle_referral_copy_link(update, context)
         elif callback_data == "referral_details" or callback_data.startswith("referral_details_page_"):
-            print("🎯 DEBUG: Details/Pagination detected - calling handler") 
+            print("🎯 DEBUG: Details/Pagination detected - calling handler")
             return await handle_referral_details(update, context)
         elif callback_data == "referral_panel":
             print("🎯 DEBUG: Referral panel detected - calling handler")
@@ -1268,9 +1268,13 @@ async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
         elif callback_data == "noop":
             print("🎯 DEBUG: Noop detected - calling handler")
             return await handle_noop(update, context)
+        # ✅ اضافه کردن main_menu handler
+        elif callback_data == "main_menu":
+            print("🎯 DEBUG: Main menu detected - calling handler")
+            return await handle_main_menu(update, context)
         else:
             print(f"❌ DEBUG: Unhandled callback: {callback_data}")
-            
+
             # ارسال پیام debug به کاربر
             await query.edit_message_text(
                 f"🔍 Debug Info:\n"
@@ -1287,11 +1291,11 @@ async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
         error_msg = str(e)
         print(f"💥 DEBUG: Exception in callback handler: {error_msg}")
         print(f"📍 DEBUG: Callback data was: {callback_data}")
-        
+
         try:
             await query.edit_message_text(
                 f"❌ خطا در پردازش درخواست:\n"
-                f"`{error_msg}`\n\n" 
+                f"`{error_msg}`\n\n"
                 f"Callback: `{callback_data}`",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("🔙 بازگشت", callback_data="main_menu")
@@ -1299,7 +1303,7 @@ async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
                 parse_mode='Markdown'
             )
         except Exception as send_error:
-            print(f"💥 DEBUG: Failed to send error message: {send_error}") 
+            print(f"💥 DEBUG: Failed to send error message: {send_error}")
 
     return MAIN_MENU
 
