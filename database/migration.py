@@ -1,4 +1,4 @@
-# database/migration.py - نسخه اصلاح شده برای سازگاری با SQLite و PostgreSQL
+# database/migration.py - نسخه نهایی و ۱۰۰٪ اصلاح شده
 
 import sqlite3
 from sqlalchemy import text
@@ -13,11 +13,10 @@ except ImportError:
 def run_migration():
     """
     اجرای migration هوشمند برای اضافه کردن ستون‌های جدید.
-    این تابع نوع دیتابیس را تشخیص داده و از دستورات SQL مناسب استفاده می‌کند.
+    این تابع نوع دیتابیس را با روش استاندارد SQLAlchemy تشخیص می‌دهد.
     """
     print("🚀 Starting smart migration...")
-    
-    # لیستی از ستون‌هایی که می‌خواهیم اضافه شوند
+
     columns_to_add = {
         'tnt_plan_type': "VARCHAR(20) DEFAULT 'free'",
         'tnt_monthly_limit': "INTEGER DEFAULT 0",
@@ -32,26 +31,24 @@ def run_migration():
 
     try:
         with db_manager.get_session() as session:
-            # تشخیص نوع دیتابیس
-            is_postgres = 'postgres' in db_manager.db_url
+            # --- این بخش با روش استاندارد اصلاح شد ---
+            dialect_name = session.bind.dialect.name
+            is_postgres = dialect_name == 'postgresql'
+            # ----------------------------------------
 
             for column, definition in columns_to_add.items():
                 try:
                     if is_postgres:
-                        # دستور مخصوص PostgreSQL که بهینه است
                         query = f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column} {definition}"
-                        session.execute(text(query))
                     else:
-                        # دستور مخصوص SQLite (بدون IF NOT EXISTS)
                         query = f"ALTER TABLE users ADD COLUMN {column} {definition}"
-                        session.execute(text(query))
-                        
+
+                    session.execute(text(query))
+
                 except (sqlite3.OperationalError, getattr(psycopg2.errors, 'DuplicateColumn', Exception)) as e:
-                    # اگر خطا به خاطر وجود داشتن ستون باشد، آن را نادیده می‌گیریم
                     if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
                         print(f"✅ Column '{column}' already exists, skipping.")
                     else:
-                        # اگر خطا به دلیل دیگری بود، آن را نمایش می‌دهیم
                         raise e
 
             session.commit()
@@ -60,5 +57,4 @@ def run_migration():
 
     except Exception as e:
         print(f"❌ Migration failed: {e}")
-        # در صورت بروز خطا، session.rollback() به طور خودکار توسط with db_manager.get_session() مدیریت می‌شود
         return False

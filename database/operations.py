@@ -262,39 +262,28 @@ def init_db():
     conn.close()
     print("✅ Database initialized successfully!")
 
-def check_subscription(user_id: int):
+from datetime import date, datetime
+from .models import User
+
+def check_subscription(user_id: int) -> bool:
     """
-    وضعیت اشتراک کاربر را با کوئری سازگار با هر دو دیتابیس بررسی می‌کند.
+    وضعیت اشتراک کاربر را با استفاده از SQLAlchemy Session بررسی می‌کند.
+    این تابع هم اشتراک قدیمی و هم پلن جدید TNT را در نظر می‌گیرد.
     """
-    conn = None
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with db_manager.get_session() as session:
+            user = session.query(User).filter(User.user_id == user_id).first()
+            if not user:
+                return False
 
-        # --- این بخش اصلاح شد ---
-        # تشخیص نوع دیتابیس و انتخاب placeholder مناسب
-        is_postgres = hasattr(conn, 'encoding') # یک روش ساده برای تشخیص psycopg2
-
-        if is_postgres:
-            query = "SELECT subscription_end, is_active FROM users WHERE user_id = %s"
-            cursor.execute(query, (user_id,))
-        else:
-            query = "SELECT subscription_end, is_active FROM users WHERE user_id = ?"
-            cursor.execute(query, (user_id,))
-        # -----------------------
-
-        result = cursor.fetchone()
-        if result:
-            end_date, is_active = result
-            if is_active and end_date and datetime.date.today() <= end_date:
+            # بررسی اشتراک فعال (هم قدیمی و هم جدید)
+            if user.is_legacy_subscription_active() or user.is_tnt_plan_active():
                 return True
-        return False
+
+            return False
     except Exception as e:
         print(f"Error checking subscription for user {user_id}: {e}")
         return False
-    finally:
-        if conn:
-            conn.close()
 
 def generate_referral_code(user_id):
     """تولید کد رفرال منحصر به فرد"""
