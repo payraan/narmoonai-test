@@ -1274,6 +1274,9 @@ async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
         elif callback_data == "main_menu":
             print("🎯 DEBUG: Main menu detected - calling handler")
             return await handle_main_menu(update, context)
+        elif callback_data == 'analyze_charts':
+            print("🎯 DEBUG: Analyze charts detected - calling handler")
+            return await show_market_selection(update, context)
         else:
             print(f"❌ DEBUG: Unhandled callback: {callback_data}")
 
