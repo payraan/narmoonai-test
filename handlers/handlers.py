@@ -10,6 +10,7 @@ from config.constants import (
 )
 from config.settings import NARMOON_DEX_LINK, NARMOON_COIN_LINK, TUTORIAL_VIDEO_LINK, SOLANA_WALLETS
 from database import check_subscription, register_user, activate_subscription
+from database.operations import get_or_create_coach_usage, increment_coach_usage, check_subscription
 from services.ai_service import analyze_chart_images
 from utils.helpers import load_static_texts
 # بارگزاری متن‌های ثابت
@@ -86,6 +87,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
    # ایجاد منوی اصلی
     main_menu_buttons = [
     [InlineKeyboardButton("📊 تحلیل نمودارها با هوش مصنوعی TNT", callback_data="analyze_charts")],
+    [InlineKeyboardButton("💬 مربی ترید", callback_data="trading_coach")],
     [InlineKeyboardButton("🪙 رمزارز", callback_data="crypto")],
     [InlineKeyboardButton("💰 سیستم رفرال", callback_data="referral_panel")],
     [
@@ -1317,3 +1319,80 @@ async def handle_noop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle no-operation callback (for page indicator button)"""
     query = update.callback_query
     await query.answer()
+
+# این دو تابع را به انتهای فایل handlers.py اضافه کنید
+
+async def start_trading_coach(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    این تابع با کلیک روی دکمه "مربی ترید" اجرا می‌شود.
+    اشتراک و محدودیت استفاده روزانه کاربر را بررسی می‌کند.
+    """
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    # ۱. چک کردن اشتراک کاربر
+    # فرض می‌کنیم تابع check_subscription از قبل وجود دارد
+    is_subscribed = check_subscription(user_id) 
+
+    if not is_subscribed:
+        # ۲. اگر کاربر رایگان است، محدودیت را چک کن
+        usage = get_or_create_coach_usage(user_id)
+        if usage.request_count >= 20:
+            await query.edit_message_text(
+                text="❌ شما به سقف ۲۰ سوال روزانه خود از مربی ترید رسیده‌اید.\n\n"
+                     "برای استفاده نامحدود، لطفاً اشتراک تهیه کنید.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("⭐️ خرید اشتراک", callback_data="subscription"),
+                    InlineKeyboardButton("🔙 بازگشت", callback_data="main_menu")
+                ]])
+            )
+            # از آنجایی که این تابع در ConversationHandler استفاده خواهد شد،
+            # باید یک state را برگردانیم. MAIN_MENU گزینه مناسبی است.
+            from config.constants import MAIN_MENU
+            return MAIN_MENU
+
+    # ۳. اگر کاربر محدودیت ندارد، پیام خوشامدگویی را نمایش بده
+    welcome_text = (
+        "✅ شما وارد بخش مربی ترید شدید.\n\n"
+        "می‌توانید سوالات خود را بپرسید یا تصویری از نمودار خود ارسال کنید.\n\n"
+        "برای خروج از این حالت و بازگشت به منوی اصلی، دستور /cancel را ارسال کنید."
+    )
+    await query.edit_message_text(text=welcome_text)
+
+    # کاربر را به حالت مکالمه با مربی وارد می‌کنیم
+    # TRADING_COACH را بعدا در فایل constants.py تعریف خواهیم کرد
+    from config.constants import TRADING_COACH
+    return TRADING_COACH
+
+async def handle_coach_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    هر پیام متنی یا تصویری کاربر در حالت مربی را پردازش می‌کند.
+    """
+    user_id = update.message.from_user.id
+
+    # TODO: منطق دریافت عکس نیز باید اینجا اضافه شود
+    user_input = update.message.text
+
+    # این پیام به کاربر نشان می‌دهد که درخواست در حال پردازش است
+    processing_message = await update.message.reply_text("⏳ در حال تحلیل سوال شما...")
+
+    # ۴. ارسال درخواست به AI Service و دریافت پاسخ
+    # تابع get_coach_response را بعدا در services/ai_service.py خواهیم ساخت
+    # from services.ai_service import get_coach_response
+    # ai_response = await get_coach_response(user_input, context) # await فراموش نشود اگر تابع async است
+
+    # شبیه‌سازی پاسخ AI برای تست
+    await asyncio.sleep(2) # تاخیر برای شبیه‌سازی
+    ai_response = f"پاسخ هوش مصنوعی به سوال شما:\n\n \"{user_input}\""
+
+    # ویرایش پیام "در حال پردازش" با پاسخ نهایی
+    await processing_message.edit_text(ai_response)
+
+    # ۵. افزایش شمارنده برای کاربر رایگان
+    if not check_subscription(user_id):
+        increment_coach_usage(user_id)
+
+    # کاربر در همین حالت مکالمه باقی می‌ماند تا بتواند به صحبت ادامه دهد
+    from config.constants import TRADING_COACH
+    return TRADING_COACH

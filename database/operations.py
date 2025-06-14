@@ -1541,3 +1541,43 @@ def auto_migrate_tnt_system():
         conn.rollback()
     finally:
         conn.close()
+
+def get_or_create_coach_usage(user_id: int):
+    """
+    اطلاعات استفاده روزانه کاربر از مربی ترید را دریافت یا ایجاد می‌کند.
+    اگر تاریخ آخرین استفاده برای دیروز باشد، شمارنده را صفر می‌کند.
+    """
+    with db_manager.get_session() as session:
+        # مدل CoachUsage را از فایل models وارد می‌کنیم
+        from .models import CoachUsage
+
+        usage = session.query(CoachUsage).filter(CoachUsage.user_id == user_id).first()
+        today = date.today()
+
+        if not usage:
+            # اگر کاربر رکوردی ندارد، یکی برایش می‌سازیم
+            usage = CoachUsage(user_id=user_id, request_count=0, last_request_date=today)
+            session.add(usage)
+            session.commit()
+            session.refresh(usage)
+            return usage
+
+        if usage.last_request_date < today:
+            # اگر آخرین استفاده مربوط به روزهای قبل است، شمارنده را ریست می‌کنیم
+            usage.request_count = 0
+            usage.last_request_date = today
+            session.commit()
+            session.refresh(usage)
+
+        return usage
+
+def increment_coach_usage(user_id: int):
+    """شمارنده سوالات روزانه کاربر را یک واحد افزایش می‌دهد."""
+    with db_manager.get_session() as session:
+        # مدل CoachUsage را از فایل models وارد می‌کنیم
+        from .models import CoachUsage
+
+        usage = session.query(CoachUsage).filter(CoachUsage.user_id == user_id).first()
+        if usage:
+            usage.request_count += 1
+            session.commit()

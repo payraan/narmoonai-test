@@ -6,6 +6,7 @@ SELECTING_TIMEFRAME = 3       # تغییر عدد
 SELECTING_STRATEGY = 4        # تغییر عدد  
 WAITING_IMAGES = 5           # تغییر عدد
 PROCESSING_ANALYSIS = 6      # تغییر عدد
+TRADING_COACH = 7
 
 # وضعیت‌های جدید برای منوی رمزارز
 CRYPTO_MENU = 100

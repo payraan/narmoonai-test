@@ -6,28 +6,32 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 from telegram.error import Conflict
 
 from config.settings import TELEGRAM_TOKEN
+# نسخه اصلاح شده
 from config.constants import (
     MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
-    SELECTING_STRATEGY, WAITING_IMAGES,
+    SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS, # این را هم اضافه کردم که کامل باشد
+    TRADING_COACH, # <-- این متغیر جدید است
     CRYPTO_MENU, DEX_MENU, DEX_SUBMENU, COIN_MENU
 )
 
 from database import init_db, db_manager
 from database.migration import run_migration
 
-# Import handlers (نسخه اصلاح و تمیز شده)
+# Import handlers (نسخه اصلاح و تمیز شده برای قابلیت جدید)
 from handlers.handlers import (
     start, handle_main_menu, show_market_selection, handle_market_selection,
     show_timeframes, handle_timeframe_selection, show_strategy_selection,
     handle_strategy_selection, receive_images, cancel,
     show_narmoon_products, show_ai_features, show_faq, show_faq_page2, usage_guide,
-    terms_and_conditions, terms_and_conditions_page2, terms_and_conditions_page3, 
+    terms_and_conditions, terms_and_conditions_page2, terms_and_conditions_page3,
     subscription_plans, support_contact,
     handle_tnt_plan_selection, handle_analysis_type_selection,
-    # توابع رفرال توسط توزیع‌کننده مرکزی مدیریت می‌شوند
     debug_callback_handler,
-    # توابع کمکی که مستقیما در main.py استفاده نمی‌شوند، لازم نیست import شوند
-    # handle_noop, handle_referral_details, etc.
+
+    # ----- خطوط جدید برای قابلیت "مربی ترید" -----
+    start_trading_coach,
+    handle_coach_conversation
+    # -----------------------------------------
 )
 
 from handlers.crypto_handlers import (
@@ -123,16 +127,29 @@ def main():
     conv_handler = ConversationHandler( 
         entry_points=[CommandHandler("start", start)],
         states={
+            # نسخه نهایی و صحیح MAIN_MENU
+
             MAIN_MENU: [
-                CallbackQueryHandler(handle_tnt_plan_selection, pattern="^(tnt_mini|tnt_plus|tnt_max)$"),  # اول این
+                # --- Handler های اختصاصی با pattern مشخص ---
+                CallbackQueryHandler(handle_tnt_plan_selection, pattern="^(tnt_mini|tnt_plus|tnt_max)$"),
                 CallbackQueryHandler(terms_and_conditions_page2, pattern="^terms_page2$"),
                 CallbackQueryHandler(terms_and_conditions_page3, pattern="^terms_page3$"),
                 CallbackQueryHandler(show_faq_page2, pattern="^faq_page2$"),
-                CallbackQueryHandler(debug_callback_handler),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(subscription_plans, pattern="^subscription$"),
-                CallbackQueryHandler(handle_main_menu),  # handlers عمومی بعد از specific ones
+    
+                # --- Handler جدید برای مربی ترید (اختصاصی) ---
+                CallbackQueryHandler(start_trading_coach, pattern='^trading_coach$'), # <-- باید قبل از debug_callback_handler باشد
+
+                # --- Handler مرکزی برای رفرال (عمومی‌تر) ---
+                CallbackQueryHandler(debug_callback_handler), 
+
+                # --- Handler عمومی در انتها ---
+                CallbackQueryHandler(handle_main_menu),
+            ],
+            TRADING_COACH: [ # <-- این بلوک جدید را اضافه کنید
+            MessageHandler(filters.TEXT & ~filters.COMMAND | filters.PHOTO, handle_coach_conversation)
             ],
             CRYPTO_MENU: [
                 CallbackQueryHandler(dex_menu, pattern="^narmoon_dex$"),

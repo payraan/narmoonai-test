@@ -16,66 +16,76 @@ Base = declarative_base()
 
 class User(Base):
     __tablename__ = 'users'
-    
+
     # Primary fields
     user_id = Column(BigInteger, primary_key=True)
     username = Column(String(255))
     created_at = Column(DateTime, default=func.now())
-    
+
     # Legacy subscription system (maintained for compatibility)
     subscription_end = Column(Date)
     subscription_type = Column(String(100))
     is_active = Column(Boolean, default=False)
-    
+
     # TNT Plan System (new)
     tnt_plan_type = Column(String(50), default='FREE')
     tnt_monthly_limit = Column(Integer, default=0)
     tnt_hourly_limit = Column(Integer, default=0)
     tnt_plan_start = Column(DateTime)
     tnt_plan_end = Column(DateTime)
-    
+
     # Referral System
     referral_code = Column(String(50), unique=True)
     custom_commission_rate = Column(Numeric(5, 2))
     total_earned = Column(Numeric(10, 2), default=0.00)
     total_paid = Column(Numeric(10, 2), default=0.00)
-    
+
     # Relationships
     transactions = relationship("Transaction", back_populates="user")
     api_requests = relationship("ApiRequest", back_populates="user")
     tnt_usage = relationship("TntUsageTracking", back_populates="user")
-    
+
     # Referral relationships
     referred_by = relationship("Referral", foreign_keys="Referral.referred_id", back_populates="referred_user")
     referrals_made = relationship("Referral", foreign_keys="Referral.referrer_id", back_populates="referrer_user")
     commissions_earned = relationship("Commission", foreign_keys="Commission.referrer_id", back_populates="referrer")
-    
+
+    # --- این خط به اینجا منتقل شد ---
+    coach_usage = relationship("CoachUsage", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
     # Indexes
     __table_args__ = (
         Index('idx_users_subscription', 'subscription_end', 'is_active'),
         Index('idx_users_tnt_plan', 'tnt_plan_type', 'tnt_plan_end'),
         Index('idx_users_referral_code', 'referral_code'),
     )
-    
+
     def __repr__(self):
         return f"<User(user_id={self.user_id}, username={self.username}, tnt_plan={self.tnt_plan_type})>"
-    
+
     @classmethod
     def generate_referral_code(cls, user_id):
         """Generate unique referral code"""
+        # Make sure to import secrets and string at the top of your models.py file
+        import secrets
+        import string
         random_part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
         return f"REF{user_id}{random_part}"
-    
+
     def is_tnt_plan_active(self):
         """Check if TNT plan is currently active"""
+        # Make sure to import datetime at the top of your models.py file
+        from datetime import datetime
         if self.tnt_plan_type == 'FREE':
             return False
         if not self.tnt_plan_end:
             return True  # Permanent plan
         return datetime.now() <= self.tnt_plan_end
-    
+
     def is_legacy_subscription_active(self):
         """Check if legacy subscription is active"""
+        # Make sure to import date from datetime at the top of your models.py file
+        from datetime import date
         if not self.is_active or not self.subscription_end:
             return False
         return date.today() <= self.subscription_end
@@ -275,3 +285,16 @@ DEFAULT_REFERRAL_SETTINGS = [
     {'setting_key': 'bonus_threshold_5', 'setting_value': '2.00'},
     {'setting_key': 'bonus_threshold_10', 'setting_value': '5.00'},
 ]
+
+# این کد را به انتهای فایل models.py اضافه کنید
+
+class CoachUsage(Base):
+    __tablename__ = 'coach_usage'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False, unique=True)
+    request_count = Column(Integer, default=0, nullable=False)
+    last_request_date = Column(Date, nullable=False)
+
+    # ایجاد رابطه با جدول User
+    user = relationship("User", back_populates="coach_usage")
