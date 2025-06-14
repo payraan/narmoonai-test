@@ -7,7 +7,7 @@ from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy import func, and_, or_, desc
+from sqlalchemy import func, and_, or_, desc, case
 
 from .connection import db_manager
 from .models import (
@@ -617,14 +617,14 @@ class ReferralRepository:
             
             # Get commission statistics
             commission_stats = session.query(
-                func.count(Commission.id).label('total_referrals'),
-                func.coalesce(func.sum(
-                    (Commission.status == 'pending', Commission.total_amount), 0
-                )).label('pending_amount'),
-                func.coalesce(func.sum(
-                    (Commission.status == 'paid', Commission.total_amount), 0
-                )).label('paid_amount')
-            ).filter(Commission.referrer_id == user_id).first()
+                func.count(Commission.id).label('total_referrals'),
+                func.coalesce(func.sum(
+                    case((Commission.status == 'pending', Commission.total_amount), else_=0)
+                ), 0).label('pending_amount'),
+                func.coalesce(func.sum(
+                    case((Commission.status == 'paid', Commission.total_amount), else_=0)
+                ), 0).label('paid_amount')
+            ).filter(Commission.referrer_id == user_id).first()
             
             return {
                 "success": True,
