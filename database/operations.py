@@ -1,3 +1,4 @@
+from . import db_manager
 import sqlite3
 # import psycopg2  # فقط برای production
 try:
