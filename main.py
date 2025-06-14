@@ -15,16 +15,19 @@ from config.constants import (
 from database import init_db, db_manager
 from database.migration import run_migration
 
-# Import handlers
+# Import handlers (نسخه اصلاح و تمیز شده)
 from handlers.handlers import (
     start, handle_main_menu, show_market_selection, handle_market_selection,
     show_timeframes, handle_timeframe_selection, show_strategy_selection,
     handle_strategy_selection, receive_images, cancel,
     show_narmoon_products, show_ai_features, show_faq, show_faq_page2, usage_guide,
-    terms_and_conditions, terms_and_conditions_page2, terms_and_conditions_page3, subscription_plans, support_contact,
-    show_referral_panel, handle_referral_copy_link, handle_referral_details,
+    terms_and_conditions, terms_and_conditions_page2, terms_and_conditions_page3, 
+    subscription_plans, support_contact,
     handle_tnt_plan_selection, handle_analysis_type_selection,
-    debug_callback_handler
+    # توابع رفرال توسط توزیع‌کننده مرکزی مدیریت می‌شوند
+    debug_callback_handler,
+    # توابع کمکی که مستقیما در main.py استفاده نمی‌شوند، لازم نیست import شوند
+    # handle_noop, handle_referral_details, etc.
 )
 
 from handlers.crypto_handlers import (
@@ -122,12 +125,10 @@ def main():
         states={
             MAIN_MENU: [
                 CallbackQueryHandler(handle_tnt_plan_selection, pattern="^(tnt_mini|tnt_plus|tnt_max)$"),  # اول این
-                CallbackQueryHandler(handle_referral_copy_link, pattern="^copy_link_.*"),
-                CallbackQueryHandler(handle_referral_details, pattern="^referral_details$"),
                 CallbackQueryHandler(terms_and_conditions_page2, pattern="^terms_page2$"),
                 CallbackQueryHandler(terms_and_conditions_page3, pattern="^terms_page3$"),
                 CallbackQueryHandler(show_faq_page2, pattern="^faq_page2$"),
-                CallbackQueryHandler(show_referral_panel, pattern="^referral_panel$"),
+                CallbackQueryHandler(debug_callback_handler),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(subscription_plans, pattern="^subscription$"),

@@ -1094,60 +1094,84 @@ async def handle_referral_copy_link(update: Update, context: ContextTypes.DEFAUL
     )
     return MAIN_MENU
 
+# کد جدید برای جایگزینی
 async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """نمایش جزئیات کامل رفرال"""
+    """Handle referral details with pagination to avoid message length limits"""
     query = update.callback_query
     await query.answer()
     
-    user_id = update.effective_user.id
+    user_id = query.from_user.id
     
+    page = 1
+    if query.data.startswith('referral_details_page_'):
+        try:
+            page = int(query.data.split('_')[-1])
+        except (ValueError, IndexError):
+            page = 1
+            
+    # This assumes get_referral_stats is in database/operations.py
     from database import get_referral_stats
     stats = get_referral_stats(user_id)
     
-    if not stats.get('success'):
+    if not stats.get("success"):
         await query.edit_message_text(
-            "❌ خطا در دریافت جزئیات رفرال.",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 بازگشت", callback_data="referral_panel")
-            ]])
+            "❌ خطا در دریافت اطلاعات رفرال",
+            reply_markup=get_back_to_referral_keyboard()
         )
-        return MAIN_MENU
+        return
     
-    message = f"""📊 جزئیات کامل رفرال
-
-🔗 کد رفرال: {stats['referral_code']}
-
-💰 آمار مالی:
-- کل درآمد: ${stats['total_earned']:.2f}
-- پرداخت شده: ${stats['total_paid']:.2f}
-- در انتظار: ${stats['pending_amount']:.2f}
-
-👥 آمار دعوت:
-- کل دعوت‌های موفق: {stats['successful_referrals']} نفر
-
-"""
+    buyers = stats.get("buyers", [])
     
-    if stats['buyers']:
-        message += "🛒 لیست خریداران:\n"
-        for i, buyer in enumerate(stats['buyers'], 1):
-            status_emoji = "✅" if buyer['status'] == 'paid' else "⏳"
-            message += f"{i}. {status_emoji} {buyer['username']}\n"
-            message += f"   📅 {buyer['plan_type']} - ${buyer['amount']:.2f}\n"
-            message += f"   📆 {buyer['date'][:10]}\n\n"
+    if not buyers:
+        text = f"📊 جزئیات کامل رفرال\n\n🔗 کد رفرال: {stats['referral_code']}\n👥 تعداد خریداران: 0 نفر\n\n❌ هنوز کسی از لینک شما خرید نکرده است."
+        await query.edit_message_text(
+            text,
+            reply_markup=get_back_to_referral_keyboard(),
+            parse_mode='HTML'
+        )
+        return
     
-    message += """💡 نکات مهم:
-- حداقل مبلغ برداشت: $20
-- برای برداشت با @Narmoon_support تماس بگیرید
-- کمیسیون پس از تایید پرداخت محاسبه می‌شود"""
+    BUYERS_PER_PAGE = 8
+    total_buyers = len(buyers)
+    total_pages = (total_buyers + BUYERS_PER_PAGE - 1) // BUYERS_PER_PAGE
+    page = max(1, min(page, total_pages))
     
-    await query.edit_message_text(
-        message,
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔙 بازگشت به پنل", callback_data="referral_panel")
-        ]]),
-        parse_mode=None
-    )
-    return MAIN_MENU
+    start_idx = (page - 1) * BUYERS_PER_PAGE
+    end_idx = start_idx + BUYERS_PER_PAGE
+    current_buyers = buyers[start_idx:end_idx]
+    
+    text_lines = [f"📊 <b>جزئیات کامل رفرال (صفحه {page} از {total_pages})</b>\n"]
+    
+    for i, buyer in enumerate(current_buyers, start=start_idx + 1):
+        status_emoji = "✅" if buyer['status'] == 'paid' else "⏳"
+        username = buyer.get('username', f"User_{buyer.get('user_id')}")
+        date_str = buyer.get('date', 'N/A')[:10]
+        plan_type = buyer.get('plan_type', 'N/A')
+        amount = buyer.get('amount', 0)
+        
+        text_lines.append(f"{i}. {status_emoji} <b>{username}</b>")
+        text_lines.append(f"    📦 {plan_type} - ${amount:.2f}")
+        text_lines.append(f"    📅 {date_str}")
+
+    text = "\n".join(text_lines)
+
+    keyboard = []
+    nav_row = []
+    
+    if page > 1:
+        nav_row.append(InlineKeyboardButton("⬅️ قبلی", callback_data=f"referral_details_page_{page-1}"))
+    if total_pages > 1:
+        nav_row.append(InlineKeyboardButton(f"📄 {page}/{total_pages}", callback_data="noop"))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton("بعدی ➡️", callback_data=f"referral_details_page_{page+1}"))
+    
+    if nav_row:
+        keyboard.append(nav_row)
+    
+    keyboard.append([InlineKeyboardButton("🔙 بازگشت به پنل رفرال", callback_data="referral_panel")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='HTML')
 
 async def handle_tnt_plan_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """پردازش انتخاب پلن TNT"""
@@ -1219,59 +1243,73 @@ async def show_tnt_payment_info(update: Update, context: ContextTypes.DEFAULT_TY
     return MAIN_MENU
 
 async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-   """Debug handler برای تمام callback ها"""
-   query = update.callback_query
-   await query.answer()
-   
-   callback_data = query.data
-   user_id = update.effective_user.id
-   user_name = update.effective_user.username or "Anonymous"
-   
-   print(f"🔍 DEBUG: Received callback: '{callback_data}'")
-   print(f"👤 DEBUG: User ID: {user_id}, Username: @{user_name}")
-   print(f"⏰ DEBUG: Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-   
-   try:
-       if callback_data.startswith("copy_link_"):
-           print("🎯 DEBUG: Copy link detected - calling handler")
-           return await handle_referral_copy_link(update, context)
-       elif callback_data == "referral_details":
-           print("🎯 DEBUG: Details detected - calling handler") 
-           return await handle_referral_details(update, context)
-       elif callback_data == "referral_panel":
-           print("🎯 DEBUG: Referral panel detected - calling handler")
-           return await show_referral_panel(update, context)
-       else:
-           print(f"❌ DEBUG: Unhandled callback: {callback_data}")
-           
-           # ارسال پیام debug به کاربر
-           await query.edit_message_text(
-               f"🔍 Debug Info:\n"
-               f"Callback: `{callback_data}`\n"
-               f"Status: Unhandled\n\n"
-               f"Please report this to support.",
-               reply_markup=InlineKeyboardMarkup([[
-                   InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
-               ]]),
-               parse_mode='Markdown'
-           )
-           
-   except Exception as e:
-       error_msg = str(e)
-       print(f"💥 DEBUG: Exception in callback handler: {error_msg}")
-       print(f"📍 DEBUG: Callback data was: {callback_data}")
-       
-       try:
-           await query.edit_message_text(
-               f"❌ خطا در پردازش درخواست:\n"
-               f"`{error_msg}`\n\n"
-               f"Callback: `{callback_data}`",
-               reply_markup=InlineKeyboardMarkup([[
-                   InlineKeyboardButton("🔙 بازگشت", callback_data="main_menu")
-               ]]),
-               parse_mode='Markdown'
-           )
-       except Exception as send_error:
-           print(f"💥 DEBUG: Failed to send error message: {send_error}")
-   
-   return MAIN_MENU
+    """Debug handler برای تمام callback ها"""
+    query = update.callback_query
+    await query.answer()
+    
+    callback_data = query.data
+    user_id = update.effective_user.id
+    user_name = update.effective_user.username or "Anonymous"
+    
+    print(f"🔍 DEBUG: Received callback: '{callback_data}'")
+    print(f"👤 DEBUG: User ID: {user_id}, Username: @{user_name}")
+    print(f"⏰ DEBUG: Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    try:
+        if callback_data.startswith("copy_link_"):
+            print("🎯 DEBUG: Copy link detected - calling handler")
+            return await handle_referral_copy_link(update, context)
+        elif callback_data == "referral_details" or callback_data.startswith("referral_details_page_"):
+            print("🎯 DEBUG: Details/Pagination detected - calling handler") 
+            return await handle_referral_details(update, context)
+        elif callback_data == "referral_panel":
+            print("🎯 DEBUG: Referral panel detected - calling handler")
+            return await show_referral_panel(update, context)
+        elif callback_data == "noop":
+            print("🎯 DEBUG: Noop detected - calling handler")
+            return await handle_noop(update, context)
+        else:
+            print(f"❌ DEBUG: Unhandled callback: {callback_data}")
+            
+            # ارسال پیام debug به کاربر
+            await query.edit_message_text(
+                f"🔍 Debug Info:\n"
+                f"Callback: `{callback_data}`\n"
+                f"Status: Unhandled\n\n"
+                f"Please report this to support.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
+                ]]),
+                parse_mode='Markdown'
+            )
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"💥 DEBUG: Exception in callback handler: {error_msg}")
+        print(f"📍 DEBUG: Callback data was: {callback_data}")
+        
+        try:
+            await query.edit_message_text(
+                f"❌ خطا در پردازش درخواست:\n"
+                f"`{error_msg}`\n\n" 
+                f"Callback: `{callback_data}`",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 بازگشت", callback_data="main_menu")
+                ]]),
+                parse_mode='Markdown'
+            )
+        except Exception as send_error:
+            print(f"💥 DEBUG: Failed to send error message: {send_error}") 
+
+    return MAIN_MENU
+
+def get_back_to_referral_keyboard():
+    """Simple back button keyboard"""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 بازگشت به پنل رفرال", callback_data="referral_panel")]
+    ])
+
+async def handle_noop(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle no-operation callback (for page indicator button)"""
+    query = update.callback_query
+    await query.answer()
