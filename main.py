@@ -1,4 +1,4 @@
-# main.py - بهبود یافته با مدیریت خطا و پشتیبانی کامل از سیستم رفرال
+# این بلوک کد را جایگزین import های فعلی در بالای فایل main.py کنید
 
 import asyncio
 import logging
@@ -9,7 +9,8 @@ from config.settings import TELEGRAM_TOKEN
 from config.constants import (
     MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
     SELECTING_STRATEGY, WAITING_IMAGES,
-    CRYPTO_MENU, DEX_MENU, DEX_SUBMENU, COIN_MENU
+    CRYPTO_MENU, DEX_MENU, DEX_SUBMENU, COIN_MENU,
+    TRADE_COACH_AWAITING_INPUT  # <-- ثابت جدید اضافه شد
 )
 
 from database import init_db, db_manager
@@ -21,13 +22,10 @@ from handlers.handlers import (
     show_timeframes, handle_timeframe_selection, show_strategy_selection,
     handle_strategy_selection, receive_images, cancel,
     show_narmoon_products, show_ai_features, show_faq, show_faq_page2, usage_guide,
-    terms_and_conditions, terms_and_conditions_page2, terms_and_conditions_page3, 
+    terms_and_conditions, terms_and_conditions_page2, terms_and_conditions_page3,
     subscription_plans, support_contact,
     handle_tnt_plan_selection, handle_analysis_type_selection,
-    # توابع رفرال توسط توزیع‌کننده مرکزی مدیریت می‌شوند
     debug_callback_handler,
-    # توابع کمکی که مستقیما در main.py استفاده نمی‌شوند، لازم نیست import شوند
-    # handle_noop, handle_referral_details, etc.
 )
 
 from handlers.crypto_handlers import (
@@ -35,7 +33,9 @@ from handlers.crypto_handlers import (
     handle_dex_option, handle_coin_option,
     handle_trending_options, handle_treasury_options,
     process_user_input, handle_tnt_analysis_request,
-    handle_trending_coins_list
+    handle_trending_coins_list,
+    trade_coach_handler,           # <-- هندلر جدید اضافه شد
+    trade_coach_prompt_handler     # <-- هندلر جدید اضافه شد
 )
 
 from admin.commands import admin_activate, admin_user_info, admin_stats, admin_broadcast, admin_referral_stats
@@ -129,6 +129,7 @@ def main():
                 CallbackQueryHandler(terms_and_conditions_page3, pattern="^terms_page3$"),
                 CallbackQueryHandler(show_faq_page2, pattern="^faq_page2$"),
                 CallbackQueryHandler(debug_callback_handler),
+                CallbackQueryHandler(crypto_handlers.trade_coach_handler, pattern='^trade_coach$'),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(subscription_plans, pattern="^subscription$"),
@@ -188,6 +189,10 @@ def main():
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$")
             ],
+            TRADE_COACH_AWAITING_INPUT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, crypto_handlers.trade_coach_prompt_handler),
+                MessageHandler(filters.PHOTO, crypto_handlers.trade_coach_prompt_handler)
+        ],       
         },
         fallbacks=[
             CommandHandler("cancel", cancel),
