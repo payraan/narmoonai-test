@@ -91,3 +91,7 @@ ANALYSIS_TYPES = {
     'classic': '📊 تحلیل کلاسیک',
     'modern': '🔬 تحلیل مدرن'
 }
+
+# === Coach System ===
+TRADE_COACH_BUTTON = "🧠 مربی ترید"
+TRADE_COACH_AWAITING_INPUT = 20
