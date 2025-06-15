@@ -1,5 +1,13 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
+import asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
+from telegram.ext import ContextTypes, ConversationHandler
+
+from config.constants import (
+    MAIN_MENU, CRYPTO_MENU, DEX_MENU, COIN_MENU, DEX_SUBMENU, COIN_SUBMENU,
+    TRADE_COACH_AWAITING_INPUT  # <-- اضافه شده
+)
+from database import check_subscription, check_user_api_limit, log_api_request
+from services import ai_service  # <-- اضافه شده
 from services.coinstats_service import coinstats_service
 from services.direct_api_service import direct_api_service
 from services.holderscan_service import holderscan_service
@@ -7,13 +15,8 @@ from utils.crypto_formatter import (
     format_market_overview, format_error_message,
     format_token_info, format_trending_tokens, format_holders_info
 )
-from config.constants import (
-    CRYPTO_MENU, DEX_MENU, COIN_MENU, DEX_SUBMENU, COIN_SUBMENU,
-    MAIN_MENU
-)
-from database import check_subscription, check_user_api_limit, log_api_request
-import asyncio
 from utils.helpers import format_token_price
+from utils.media_handler import download_photo  # <-- اضافه شده
 def escape_markdown_v2(text):
     """Escape کردن کاراکترهای خاص برای Markdown V2"""
     if not text:
@@ -1573,3 +1576,40 @@ def format_snipers_info(data):
         message += "هیچ اسنایپری یافت نشد."
     
     return message
+
+async def trade_coach_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Starts the Trade Coach conversation and prompts the user."""
+    keyboard = [[KeyboardButton("بازگشت به منوی اصلی")]]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text(
+        "به بخش مربی ترید خوش آمدید! 🧠\n\n"
+        "می‌توانید سوالات خود را در مورد مدیریت ریسک، روانشناسی بازار و استراتژی‌های معاملاتی بپرسید یا نموداری از تحلیل خود را ارسال کنید تا با سوالات کلیدی شما را راهنمایی کنم.\n\n"
+        "لطفاً سوال یا نمودار خود را بفرستید.",
+        reply_markup=reply_markup
+    )
+    return TRADE_COACH_AWAITING_INPUT
+
+async def trade_coach_prompt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles the user's input for the Trade Coach."""
+    user_id = update.message.from_user.id
+    prompt_text = update.message.text or update.message.caption or ""
+    photo_file_id = update.message.photo[-1].file_id if update.message.photo else None
+
+    processing_message = await update.message.reply_text("⏳ در حال پردازش، لطفاً صبر کنید...")
+
+    photo_path = await download_photo(photo_file_id, context) if photo_file_id else None
+
+    result = await ai_service.get_trade_coach_response(user_id=user_id, text_prompt=prompt_text, photo_path=photo_path)
+
+    await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=processing_message.message_id)
+
+    if result.get("success"):
+        await update.message.reply_text(result["response"])
+    elif result.get("error") == "LIMIT_EXCEEDED":
+        await update.message.reply_text("شما به سقف استفاده روزانه از این قابلیت رسیده‌اید.")
+    else:
+        await update.message.reply_text("متاسفانه خطایی در ارتباط با هوش مصنوعی رخ داد. لطفاً دوباره تلاش کنید.")
+
+    from .handlers import show_main_menu
+    await show_main_menu(update, context)
+    return ConversationHandler.END

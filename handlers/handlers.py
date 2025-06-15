@@ -1,17 +1,23 @@
-import random
-import asyncio
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler
-from datetime import datetime
-from config.constants import (
-    MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
-    SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS,
-    MARKETS, TIMEFRAMES, EXPECTED_TIMEFRAMES, STRATEGIES, STRATEGY_CATEGORIES
+import logging
+import re
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from telegram.ext import (
+    ContextTypes,
+    ConversationHandler,
+    CommandHandler,
+    MessageHandler,
+    filters
 )
-from config.settings import NARMOON_DEX_LINK, NARMOON_COIN_LINK, TUTORIAL_VIDEO_LINK, SOLANA_WALLETS
+
+from config import constants as c
+from . import crypto_handlers  # <-- اضافه شده و بسیار مهم
+
+# توابع این فایل دیگر مستقیما به اینها نیاز ندارند، اما برای حفظ ساختار فعلی نگه داشته شده‌اند
 from database import check_subscription, register_user, activate_subscription
-from services.ai_service import analyze_chart_images
 from utils.helpers import load_static_texts
+
+# راه‌اندازی لاگر
+logger = logging.getLogger(__name__)
 # بارگزاری متن‌های ثابت
 STATIC_TEXTS = load_static_texts()
 async def send_long_message(update, context, message, max_length=3500):
@@ -86,6 +92,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
    # ایجاد منوی اصلی
     main_menu_buttons = [
     [InlineKeyboardButton("📊 تحلیل نمودارها با هوش مصنوعی TNT", callback_data="analyze_charts")],
+    [InlineKeyboardButton("🧠 مربی ترید", callback_data="trade_coach")],
     [InlineKeyboardButton("🪙 رمزارز", callback_data="crypto")],
     [InlineKeyboardButton("💰 سیستم رفرال", callback_data="referral_panel")],
     [

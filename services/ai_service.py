@@ -1,84 +1,131 @@
 import base64
-from openai import OpenAI
+import logging
+from datetime import date
+import openai
+
 from config.settings import OPENAI_API_KEY
+from database import repository
+from resources.prompts.strategies import STRATEGY_PROMPTS
 
-# ایجاد کلاینت OpenAI
-client = OpenAI(api_key=OPENAI_API_KEY)
+# راه‌اندازی لاگر
+logger = logging.getLogger(__name__)
 
-def analyze_chart_images(images, strategy_prompt):
-    """تحلیل تصاویر چارت با استفاده از OpenAI Vision API"""
-    
+# ایجاد کلاینت Async OpenAI
+client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+def encode_image_to_base64(image_path: str) -> str:
+    """یک فایل تصویری را به رشته base64 تبدیل می‌کند."""
     try:
-        # بررسی اینکه strategy_prompt خالی نباشد
-        if not strategy_prompt:
-            strategy_prompt = "لطفاً این نمودار را تحلیل کنید و نظر خود را ارائه دهید."
+        with open(image_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode('utf-8')
+    except Exception as e:
+        logger.error(f"Error encoding image {image_path}: {e}")
+        return None
+
+async def generate_tnt_analaysis(user_id: int, prompt_key: str, photo_path: str = None) -> dict:
+    """
+    تحلیل تصویر چارت با استفاده از پرامپت‌های TNT.
+    این تابع بازنویسی شده تا با ساختار جدید هماهنگ باشد.
+    """
+    logger.info(f"Generating TNT analysis for user {user_id} with prompt key '{prompt_key}'")
+    try:
+        # ۱. بررسی اشتراک کاربر
+        if not await repository.has_active_tnt_plan(user_id):
+            return {"success": False, "error": "NO_ACTIVE_PLAN"}
+
+        # ۲. بارگذاری پرامپت استراتژی
+        system_prompt = STRATEGY_PROMPTS.get(prompt_key)
+        if not system_prompt:
+            logger.error(f"TNT prompt key '{prompt_key}' not found.")
+            return {"success": False, "error": "PROMPT_NOT_FOUND"}
         
-        # آماده‌سازی محتوای پیام
-        message_content = [
-            {
-                "type": "text",
-                "text": str(strategy_prompt)  # تبدیل به string
-            }
-        ]
+        # ۳. آماده‌سازی محتوای پیام
+        user_content = [{"type": "text", "text": "لطفاً نمودار را بر اساس استراتژی ارائه شده تحلیل کنید."}]
+        if photo_path:
+            base64_image = encode_image_to_base64(photo_path)
+            if base64_image:
+                user_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                })
         
-        # اضافه کردن تصاویر
-        for img_bytes, ext in images:
-            # تعیین mime type صحیح
-            if ext.lower() in ["jpeg", "jpg"]:
-                mime_type = "image/jpeg"
-            elif ext.lower() == "png":
-                mime_type = "image/png"
-            elif ext.lower() == "webp":
-                mime_type = "image/webp"
-            elif ext.lower() == "gif":
-                mime_type = "image/gif"
-            else:
-                mime_type = "image/jpeg"
-            
-            # تبدیل به base64
-            b64_image = base64.b64encode(img_bytes).decode('utf-8')
-            
-            # اضافه کردن تصویر
-            message_content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:{mime_type};base64,{b64_image}",
-                    "detail": "high"
-                }
-            })
-        
-        # ساخت پیام نهایی
-        messages = [
-            {
-                "role": "user",
-                "content": message_content
-            }
-        ]
-        
-        print(f"🔍 DEBUG: Calling OpenAI with model gpt-4o and {len(images)} images")
-        
-        # فراخوانی API با مدل صحیح
-        response = client.chat.completions.create(
-            model="gpt-4o",  # اطمینان از نام صحیح مدل
-            messages=messages,
-            max_tokens=1300,
+        # ۴. فراخوانی صحیح OpenAI API
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            max_tokens=1500,
             temperature=0.2
         )
+        ai_response = response.choices[0].message.content
         
-        result = response.choices[0].message.content
-        if not result:
-            return "متأسفانه نتوانستم تحلیل مناسبی ارائه دهم. لطفاً دوباره امتحان کنید."
+        # TODO: منطق به‌روزرسانی شمارنده TNT در اینجا پیاده‌سازی شود
+        # await repository.update_tnt_usage(...)
         
-        return result
-        
+        return {"success": True, "response": ai_response}
+
     except Exception as e:
-        error_msg = str(e)
-        print(f"❌ OpenAI API Error: {error_msg}")
+        logger.error(f"Error in generate_tnt_analaysis for user {user_id}: {e}", exc_info=True)
+        return {"success": False, "error": "GENERAL_AI_ERROR"}
+
+
+async def get_trade_coach_response(user_id: int, text_prompt: str, photo_path: str = None) -> dict:
+    """
+    منطق دریافت پاسخ از مربی ترید را مدیریت می‌کند.
+    محدودیت استفاده برای کاربران رایگان را بررسی کرده و OpenAI API را به درستی فراخوانی می‌کند.
+    """
+    logger.info(f"Getting trade coach response for user_id: {user_id}")
+    try:
+        # ۱. بررسی اشتراک کاربر
+        has_plan = await repository.has_active_tnt_plan(user_id)
+
+        # ۲. بررسی محدودیت برای کاربران رایگان
+        if not has_plan:
+            today = date.today()
+            usage_today = await repository.get_coach_usage(user_id=user_id, usage_date=today)
+            current_count = usage_today.message_count if usage_today else 0
+            
+            if current_count >= 20:
+                logger.warning(f"User {user_id} has exceeded the daily limit for Trade Coach.")
+                return {"success": False, "error": "LIMIT_EXCEEDED"}
+
+        # ۳. آماده‌سازی پیام برای ارسال به OpenAI
+        system_prompt = STRATEGY_PROMPTS.get('trade_coach')
+        if not system_prompt:
+            logger.error("Trade Coach prompt not found in strategies.")
+            return {"success": False, "error": "PROMPT_NOT_FOUND"}
+
+        user_content = [{"type": "text", "text": text_prompt}]
+        if photo_path:
+            base64_image = encode_image_to_base64(photo_path)
+            if base64_image:
+                user_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                })
         
-        # بررسی نوع خطا
-        if "Invalid content type" in error_msg:
-            return "خطا در فرمت تصویر. لطفاً تصویر را در فرمت JPG یا PNG ارسال کنید."
-        elif "model" in error_msg.lower():
-            return "خطا در مدل هوش مصنوعی. لطفاً بعداً امتحان کنید."
-        else:
-            return f"خطا در تحلیل: {error_msg}"
+        # ۴. فراخوانی صحیح OpenAI API با نقش‌های مجزای system و user
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            max_tokens=1200,
+            temperature=0.3
+        )
+        ai_response = response.choices[0].message.content
+
+        # ۵. به‌روزرسانی شمارنده برای کاربران رایگان
+        if not has_plan:
+            # این تابع در ریپازیتوری شما وجود دارد و فقط user_id و date نیاز دارد
+            await repository.increment_coach_usage(user_id=user_id, usage_date=date.today())
+        
+        logger.info(f"Successfully got trade coach response for user_id: {user_id}")
+        return {"success": True, "response": ai_response}
+
+    except Exception as e:
+        logger.error(f"Error in get_trade_coach_response for user {user_id}: {e}", exc_info=True)
+        return {"success": False, "error": "GENERAL_AI_ERROR"}
