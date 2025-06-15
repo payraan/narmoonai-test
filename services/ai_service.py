@@ -6,6 +6,7 @@ import openai
 from config.settings import OPENAI_API_KEY
 from database import repository
 from resources.prompts.strategies import STRATEGY_PROMPTS
+from database import get_user_tnt_plan
 
 # راه‌اندازی لاگر
 logger = logging.getLogger(__name__)
@@ -30,7 +31,11 @@ async def generate_tnt_analaysis(user_id: int, prompt_key: str, photo_path: str 
     logger.info(f"Generating TNT analysis for user {user_id} with prompt key '{prompt_key}'")
     try:
         # ۱. بررسی اشتراک کاربر
-        if not await repository.has_active_tnt_plan(user_id):
+        # Check if user has active TNT plan
+        tnt_plan = get_user_tnt_plan(user_id)
+        has_plan = tnt_plan and tnt_plan.get("plan_active", False) and tnt_plan.get("plan_type") != "FREE"
+
+        if not has_plan:
             return {"success": False, "error": "NO_ACTIVE_PLAN"}
 
         # ۲. بارگذاری پرامپت استراتژی
