@@ -275,3 +275,20 @@ DEFAULT_REFERRAL_SETTINGS = [
     {'setting_key': 'bonus_threshold_5', 'setting_value': '2.00'},
     {'setting_key': 'bonus_threshold_10', 'setting_value': '5.00'},
 ]
+
+class CoachUsage(Base):
+    __tablename__ = 'coach_usage'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    usage_date = Column(Date, nullable=False)
+    message_count = Column(Integer, default=1, nullable=False)
+    
+    # Establishes the many-to-one relationship
+    user = relationship("User") 
+    
+    # Ensures a user can only have one entry per day
+    __table_args__ = (UniqueConstraint('user_id', 'usage_date', name='_user_date_uc'),)
+
+    def __repr__(self):
+        return f"<CoachUsage(user_id={self.user_id}, date={self.usage_date}, count={self.message_count})>"

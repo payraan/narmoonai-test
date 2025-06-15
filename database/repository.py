@@ -12,7 +12,7 @@ from sqlalchemy import func, and_, or_, desc, case
 from .connection import db_manager
 from .models import (
     User, Transaction, ApiRequest, TntUsageTracking, TntPlan,
-    Referral, Commission, ReferralSetting
+    Referral, Commission, ReferralSetting, CoachUsage
 )
 
 logger = logging.getLogger(__name__)
@@ -787,3 +787,46 @@ def get_referral_stats(user_id: int):
 def get_admin_referral_stats():
     """Backward compatibility function"""
     return ReferralRepository.get_admin_referral_stats()
+
+async def get_coach_usage(user_id: int, usage_date: date) -> Optional[CoachUsage]:
+    """Fetches the trade coach usage record for a specific user and date."""
+    try:
+        async with db_manager.get_session() as session:
+            result = await session.execute(
+                select(CoachUsage).filter_by(user_id=user_id, usage_date=usage_date)
+            )
+            return result.scalar_one_or_none()
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching coach usage for user {user_id}: {e}")
+        return None
+
+async def create_coach_usage(user_id: int, usage_date: date) -> Optional[CoachUsage]:
+    """Creates the first usage record for the trade coach for a given day."""
+    try:
+        async with db_manager.get_session() as session:
+            new_usage = CoachUsage(user_id=user_id, usage_date=usage_date, message_count=1)
+            session.add(new_usage)
+            await session.commit()
+            await session.refresh(new_usage)
+            return new_usage
+    except SQLAlchemyError as e:
+        logger.error(f"Error creating coach usage for user {user_id}: {e}")
+        return None
+
+async def increment_coach_usage(user_id: int, usage_date: date) -> bool:
+    """Increments the message count for an existing usage record."""
+    try:
+        async with db_manager.get_session() as session:
+            result = await session.execute(
+                select(CoachUsage).filter_by(user_id=user_id, usage_date=usage_date)
+            )
+            usage = result.scalar_one_or_none()
+            
+            if usage:
+                usage.message_count += 1
+                await session.commit()
+                return True
+            return False
+    except SQLAlchemyError as e:
+        logger.error(f"Error incrementing coach usage for user {user_id}: {e}")
+        return False
