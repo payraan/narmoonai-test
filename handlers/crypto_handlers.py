@@ -1657,6 +1657,10 @@ async def trade_coach_prompt_handler(update: Update, context: ContextTypes.DEFAU
             print(f"🧹 Cleaned up temporary file: {photo_path}")
 
     # نمایش منوی اصلی در انتها
-    from .handlers import start
-    await start(update, context)
-    return ConversationHandler.END
+    # Keep user in trade coach conversation instead of returning to main menu
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="💬 می‌تونید سوال بعدی‌تون رو بپرسید یا /start را بزنید تا به منوی اصلی برگردید.",
+        parse_mode='HTML'
+    )
+    return TRADE_COACH_AWAITING_INPUT
