@@ -1,5 +1,6 @@
 # utils/media_handler.py
 import os
+import tempfile
 from telegram import Update, InlineKeyboardMarkup, InputMediaPhoto, InputMediaAnimation
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
@@ -80,3 +81,28 @@ class MediaHandler:
 
 # نمونه global
 media_handler = MediaHandler()
+
+
+async def download_photo(file_id: str, context: ContextTypes.DEFAULT_TYPE) -> str | None:
+    """
+    عکس را در یک فایل موقت امن دانلود کرده و مسیر آن را برمی‌گرداند.
+    فایل پس از استفاده باید به صورت دستی پاک شود.
+    """
+    try:
+        bot_file = await context.bot.get_file(file_id)
+        
+        # استخراج پسوند اصلی فایل
+        file_ext = os.path.splitext(bot_file.file_path)[1]
+        
+        # ساخت فایل موقت امن با پسوند صحیح
+        # delete=False ضروری است تا فایل پس از خروج از with باقی بماند
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
+        
+        await bot_file.download_to_drive(temp_file.name)
+        print(f"✅ Photo downloaded to temporary file: {temp_file.name}")
+        temp_file.close() # بستن فایل
+        return temp_file.name
+            
+    except Exception as e:
+        print(f"❌ Error downloading photo: {e}")
+        return None

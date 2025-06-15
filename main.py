@@ -129,7 +129,7 @@ def main():
                 CallbackQueryHandler(terms_and_conditions_page3, pattern="^terms_page3$"),
                 CallbackQueryHandler(show_faq_page2, pattern="^faq_page2$"),
                 CallbackQueryHandler(debug_callback_handler),
-                CallbackQueryHandler(crypto_handlers.trade_coach_handler, pattern='^trade_coach$'),
+                CallbackQueryHandler(trade_coach_handler, pattern='^trade_coach$'),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(subscription_plans, pattern="^subscription$"),
@@ -190,8 +190,8 @@ def main():
                 CallbackQueryHandler(show_market_selection, pattern="^analyze_charts$")
             ],
             TRADE_COACH_AWAITING_INPUT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, crypto_handlers.trade_coach_prompt_handler),
-                MessageHandler(filters.PHOTO, crypto_handlers.trade_coach_prompt_handler)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, trade_coach_prompt_handler),
+                MessageHandler(filters.PHOTO, trade_coach_prompt_handler)
         ],       
         },
         fallbacks=[

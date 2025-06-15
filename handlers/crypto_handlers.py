@@ -1,4 +1,5 @@
 import asyncio
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
@@ -1590,26 +1591,46 @@ async def trade_coach_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     return TRADE_COACH_AWAITING_INPUT
 
 async def trade_coach_prompt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handles the user's input for the Trade Coach."""
+    """Handles the user's input for the Trade Coach with proper cleanup."""
     user_id = update.message.from_user.id
     prompt_text = update.message.text or update.message.caption or ""
-    photo_file_id = update.message.photo[-1].file_id if update.message.photo else None
-
+    
     processing_message = await update.message.reply_text("⏳ در حال پردازش، لطفاً صبر کنید...")
+    
+    photo_path = None  # مقداردهی اولیه مسیر عکس
+    try:
+        # بررسی وجود عکس و دانلود آن
+        photo_file_id = update.message.photo[-1].file_id if update.message.photo else None
+        if photo_file_id:
+            photo_path = await download_photo(photo_file_id, context)
 
-    photo_path = await download_photo(photo_file_id, context) if photo_file_id else None
+        # دریافت پاسخ از سرویس هوش مصنوعی
+        result = await ai_service.get_trade_coach_response(user_id=user_id, text_prompt=prompt_text, photo_path=photo_path)
+        
+        # حذف پیام "در حال پردازش"
+        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=processing_message.message_id)
 
-    result = await ai_service.get_trade_coach_response(user_id=user_id, text_prompt=prompt_text, photo_path=photo_path)
+        # مدیریت پاسخ دریافت شده
+        if result.get("success"):
+            await update.message.reply_text(result["response"])
+        elif result.get("error") == "LIMIT_EXCEEDED":
+            await update.message.reply_text("شما به سقف استفاده روزانه از این قابلیت رسیده‌اید.")
+        else:
+            await update.message.reply_text("متاسفانه خطایی در ارتباط با هوش مصنوعی رخ داد. لطفاً دوباره تلاش کنید.")
 
-    await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=processing_message.message_id)
+    except Exception as e:
+        # در صورت بروز هرگونه خطا، پیام "در حال پردازش" را حذف و به کاربر اطلاع بده
+        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=processing_message.message_id)
+        print(f"❌ An error occurred in trade_coach_prompt_handler: {e}")
+        await update.message.reply_text("⚠️ متاسفانه در پردازش درخواست شما خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+    
+    finally:
+        # این بلوک همیشه اجرا می‌شود و فایل موقت را پاک می‌کند
+        if photo_path and os.path.exists(photo_path):
+            os.remove(photo_path)
+            print(f"🧹 Cleaned up temporary file: {photo_path}")
 
-    if result.get("success"):
-        await update.message.reply_text(result["response"])
-    elif result.get("error") == "LIMIT_EXCEEDED":
-        await update.message.reply_text("شما به سقف استفاده روزانه از این قابلیت رسیده‌اید.")
-    else:
-        await update.message.reply_text("متاسفانه خطایی در ارتباط با هوش مصنوعی رخ داد. لطفاً دوباره تلاش کنید.")
-
+    # نمایش منوی اصلی در انتها
     from .handlers import show_main_menu
     await show_main_menu(update, context)
     return ConversationHandler.END
