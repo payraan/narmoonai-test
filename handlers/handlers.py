@@ -1256,6 +1256,7 @@ async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
     print(f"⏰ DEBUG: Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
+        # Handle referral-specific callbacks
         if callback_data.startswith("copy_link_"):
             print("🎯 DEBUG: Copy link detected - calling handler")
             return await handle_referral_copy_link(update, context)
@@ -1268,24 +1269,10 @@ async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
         elif callback_data == "noop":
             print("🎯 DEBUG: Noop detected - calling handler")
             return await handle_noop(update, context)
-        # ✅ اضافه کردن main_menu handler
-        elif callback_data == "main_menu":
-            print("🎯 DEBUG: Main menu detected - calling handler")
-            return await handle_main_menu(update, context)
         else:
-            print(f"❌ DEBUG: Unhandled callback: {callback_data}")
-
-            # ارسال پیام debug به کاربر
-            await query.edit_message_text(
-                f"🔍 Debug Info:\n"
-                f"Callback: `{callback_data}`\n"
-                f"Status: Unhandled\n\n"
-                f"Please report this to support.",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")
-                ]]),
-                parse_mode='Markdown'
-            )
+            # ✨ Forward all other callbacks to handle_main_menu
+            print(f"🔄 DEBUG: Forwarding '{callback_data}' to handle_main_menu")
+            return await handle_main_menu(update, context)
 
     except Exception as e:
         error_msg = str(e)
