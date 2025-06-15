@@ -1,6 +1,7 @@
 import logging
 import re
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from datetime import datetime
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,
@@ -10,6 +11,12 @@ from telegram.ext import (
 )
 
 from config import constants as c
+from config.constants import (
+    MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
+    SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS,
+    CRYPTO_MENU, DEX_MENU, DEX_SUBMENU, COIN_MENU, COIN_SUBMENU,
+    TRADE_COACH_AWAITING_INPUT, MARKETS, STRATEGIES
+)
 from . import crypto_handlers  # <-- اضافه شده و بسیار مهم
 
 # توابع این فایل دیگر مستقیما به اینها نیاز ندارند، اما برای حفظ ساختار فعلی نگه داشته شده‌اند

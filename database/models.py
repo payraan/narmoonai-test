@@ -280,7 +280,7 @@ class CoachUsage(Base):
     __tablename__ = 'coach_usage'
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False)
     usage_date = Column(Date, nullable=False)
     message_count = Column(Integer, default=1, nullable=False)
     
