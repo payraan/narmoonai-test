@@ -1,4 +1,9 @@
 import logging
+import os
+import asyncio
+import tempfile
+from services.ai_service import generate_tnt_analaysis
+from utils.media_handler import download_photo
 import re
 from datetime import datetime
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
@@ -173,6 +178,9 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await crypto_menu(update, context)
     elif query.data == "referral_panel":
         return await show_referral_panel(update, context)
+    elif query.data == "trade_coach":
+        from handlers.crypto_handlers import trade_coach_handler
+        return await trade_coach_handler(update, context)
     elif query.data == "analyze_charts":
         user_id = update.effective_user.id
         from database import check_tnt_analysis_limit
@@ -565,7 +573,34 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # استفاده از پرامپت اختصاصی استراتژی انتخابی
         strategy_prompt = context.user_data.get('strategy_prompt')
-        result = analyze_chart_images(context.user_data['received_images'], strategy_prompt)
+
+        # Process images and call AI service
+        try:
+            # Save first image to temporary file for AI analysis
+            if context.user_data['received_images']:
+                first_image_data, ext = context.user_data['received_images'][0]
+        
+                # Create temporary file
+                with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{ext}') as temp_file:
+                    temp_file.write(first_image_data)
+                    temp_file_path = temp_file.name
+        
+                # Get AI analysis
+                ai_response = await generate_tnt_analaysis(user_id, 'narmoon_ai', temp_file_path)
+        
+                # Clean up temporary file
+                os.unlink(temp_file_path)
+        
+                if ai_response.get("success"):
+                    result = ai_response["response"]
+                else:
+                    result = "❌ خطا در تحلیل توسط هوش مصنوعی. لطفاً دوباره تلاش کنید."
+            else:
+                result = "❌ هیچ تصویری دریافت نشد."
+        
+        except Exception as e:
+            print(f"Error in AI analysis: {e}")
+            result = "❌ خطا در پردازش تصویر. لطفاً دوباره تلاش کنید."
         
         # دکمه بازگشت به منوی اصلی
         menu_button = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")]])

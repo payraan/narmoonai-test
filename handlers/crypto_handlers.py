@@ -1580,14 +1580,40 @@ def format_snipers_info(data):
 
 async def trade_coach_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the Trade Coach conversation and prompts the user."""
-    keyboard = [[KeyboardButton("بازگشت به منوی اصلی")]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    await update.message.reply_text(
-        "به بخش مربی ترید خوش آمدید! 🧠\n\n"
-        "می‌توانید سوالات خود را در مورد مدیریت ریسک، روانشناسی بازار و استراتژی‌های معاملاتی بپرسید یا نموداری از تحلیل خود را ارسال کنید تا با سوالات کلیدی شما را راهنمایی کنم.\n\n"
-        "لطفاً سوال یا نمودار خود را بفرستید.",
-        reply_markup=reply_markup
-    )
+    
+    # Handle both callback_query and message
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        
+        keyboard = [[KeyboardButton("بازگشت به منوی اصلی")]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        
+        await query.edit_message_text(
+            "به بخش مربی ترید خوش آمدید! 🧠\n\n"
+            "می‌توانید سوالات خود را در مورد مدیریت ریسک، روانشناسی بازار و استراتژی‌های معاملاتی بپرسید یا نموداری از تحلیل خود را ارسال کنید تا با سوالات کلیدی شما را راهنمایی کنم.\n\n"
+            "لطفاً سوال یا نمودار خود را بفرستید.",
+            reply_markup=None
+        )
+        
+        # Send keyboard in separate message
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="برای ادامه، سوال خود را بپرسید:",
+            reply_markup=reply_markup
+        )
+        
+    else:
+        # Handle regular message
+        keyboard = [[KeyboardButton("بازگشت به منوی اصلی")]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text(
+            "به بخش مربی ترید خوش آمدید! 🧠\n\n"
+            "می‌توانید سوالات خود را در مورد مدیریت ریسک، روانشناسی بازار و استراتژی‌های معاملاتی بپرسید یا نموداری از تحلیل خود را ارسال کنید تا با سوالات کلیدی شما را راهنمایی کنم.\n\n"
+            "لطفاً سوال یا نمودار خود را بفرستید.",
+            reply_markup=reply_markup
+        )
+    
     return TRADE_COACH_AWAITING_INPUT
 
 async def trade_coach_prompt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1631,6 +1657,6 @@ async def trade_coach_prompt_handler(update: Update, context: ContextTypes.DEFAU
             print(f"🧹 Cleaned up temporary file: {photo_path}")
 
     # نمایش منوی اصلی در انتها
-    from .handlers import show_main_menu
-    await show_main_menu(update, context)
+    from .handlers import start
+    await start(update, context)
     return ConversationHandler.END
