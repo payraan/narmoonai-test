@@ -36,7 +36,7 @@ from handlers.crypto_handlers import (
     trade_coach_prompt_handler     # <-- هندلر جدید اضافه شد
 )
 
-from admin.commands import admin_activate, admin_user_info, admin_stats, admin_broadcast, admin_referral_stats
+from admin.commands import admin_activate, admin_user_info, admin_stats, admin_broadcast, admin_referral_stats, admin_health_check
 
 # Configure logging
 logging.basicConfig(
@@ -265,6 +265,7 @@ def main():
     app.add_handler(CommandHandler("cleandb", admin_clean_database))
     app.add_handler(CommandHandler("dbstats", admin_db_stats))
     app.add_handler(CommandHandler("resetdb", admin_reset_db))
+    app.add_handler(CommandHandler("health", admin_health_check))
 
     print("🤖 ربات نارموون آماده است!")
     print(f"✅ توکن: {TELEGRAM_TOKEN[:10]}...")

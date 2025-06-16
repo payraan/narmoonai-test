@@ -19,6 +19,12 @@ def encode_image_to_base64(image_path: str) -> str:
     try:
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
+    except FileNotFoundError:
+        logger.error(f"Image file not found: {image_path}")
+        return None
+    except PermissionError:
+        logger.error(f"Permission denied accessing image: {image_path}")
+        return None
     except Exception as e:
         logger.error(f"Error encoding image {image_path}: {e}")
         return None
@@ -71,6 +77,12 @@ async def generate_tnt_analaysis(user_id: int, prompt_key: str, photo_path: str 
         
         return {"success": True, "response": ai_response}
 
+    except openai.AuthenticationError:
+        logger.error(f"OpenAI API authentication failed for user {user_id}")
+        return {"success": False, "error": "API_AUTH_ERROR"}
+    except openai.RateLimitError:
+        logger.error(f"OpenAI API rate limit exceeded for user {user_id}")
+        return {"success": False, "error": "RATE_LIMIT_ERROR"}
     except Exception as e:
         logger.error(f"Error in generate_tnt_analaysis for user {user_id}: {e}", exc_info=True)
         return {"success": False, "error": "GENERAL_AI_ERROR"}
@@ -135,6 +147,12 @@ async def get_trade_coach_response(user_id: int, text_prompt: str, photo_path: s
         logger.info(f"Successfully got trade coach response for user_id: {user_id}")
         return {"success": True, "response": ai_response}
 
+    except openai.AuthenticationError:
+        logger.error(f"OpenAI API authentication failed for user {user_id}")
+        return {"success": False, "error": "API_AUTH_ERROR"}
+    except openai.RateLimitError:
+        logger.error(f"OpenAI API rate limit exceeded for user {user_id}")
+        return {"success": False, "error": "RATE_LIMIT_ERROR"}
     except Exception as e:
         logger.error(f"Error in get_trade_coach_response for user {user_id}: {e}", exc_info=True)
         return {"success": False, "error": "GENERAL_AI_ERROR"}

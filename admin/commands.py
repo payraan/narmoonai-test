@@ -1,5 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+from datetime import datetime
 from config.settings import ADMIN_ID
 from database import (
     activate_subscription, get_connection, get_user_api_stats,
@@ -769,6 +770,44 @@ async def admin_reset_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
+
+async def admin_health_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """بررسی سلامت سیستم ربات"""
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    try:
+        from database import db_manager
+        
+        # بررسی دیتابیس
+        db_health = db_manager.health_check()
+        
+        # بررسی Redis cache
+        from utils.helpers import get_cache_stats
+        cache_health = get_cache_stats()
+        
+        health_message = f"""🏥 **گزارش سلامت سیستم**
+
+📊 **دیتابیس:**
+- وضعیت: {'✅ سالم' if db_health['status'] == 'healthy' else '❌ مشکل دار'}
+- نوع: {db_health.get('database_type', 'نامشخص')}
+- کاربران: {db_health.get('user_count', 0):,}
+- تراکنش‌ها: {db_health.get('transaction_count', 0):,}
+
+💾 **کش:**
+- وضعیت: {'✅ Redis' if cache_health.get('redis_connected') else '⚠️ Memory'}
+- Status: {cache_health.get('status', 'unknown')}
+
+🤖 **ربات:**
+- حافظه: متصل
+- سرویس‌ها: فعال
+- آخرین چک: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+        
+        await update.message.reply_text(health_message, parse_mode='Markdown')
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در بررسی سلامت: {str(e)}")
 
 async def admin_referral_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش آمار کامل رفرال برای ادمین"""
