@@ -5,6 +5,7 @@ import os
 import logging
 from typing import Optional
 from sqlalchemy import create_engine, pool
+from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
 from contextlib import contextmanager
@@ -130,7 +131,7 @@ class DatabaseManager:
         try:
             with self.get_session() as session:
                 # Simple query to test connection
-                result = session.execute("SELECT 1")
+                result = session.execute(text("SELECT 1"))
                 result.fetchone()
                 
                 # Get basic stats
