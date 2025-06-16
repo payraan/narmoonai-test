@@ -1,7 +1,13 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from config.settings import ADMIN_ID
-from database import activate_subscription, get_connection, get_user_api_stats
+from database import (
+    activate_subscription, get_connection, get_user_api_stats,
+    check_tnt_analysis_limit, record_tnt_analysis_usage,
+    activate_tnt_subscription, get_user_tnt_usage_stats,
+    create_referral_relationship, calculate_commission,
+    get_admin_referral_stats
+)
 from database.repository import UserRepository
 
 async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):

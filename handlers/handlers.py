@@ -28,7 +28,10 @@ from config.constants import (
 from . import crypto_handlers  # <-- اضافه شده و بسیار مهم
 
 # توابع این فایل دیگر مستقیما به اینها نیاز ندارند، اما برای حفظ ساختار فعلی نگه داشته شده‌اند
-from database import check_subscription, register_user, activate_subscription
+from database import (
+    check_subscription, register_user, activate_subscription,
+    check_tnt_analysis_limit, record_tnt_analysis_usage
+)
 from utils.helpers import load_static_texts
 
 # راه‌اندازی لاگر
@@ -186,7 +189,6 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await trade_coach_handler(update, context)
     elif query.data == "analyze_charts":
         user_id = update.effective_user.id
-        from database import check_tnt_analysis_limit
         
         limit_check = check_tnt_analysis_limit(user_id)
         

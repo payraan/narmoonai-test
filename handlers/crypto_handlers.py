@@ -8,7 +8,10 @@ from config.constants import (
     MAIN_MENU, CRYPTO_MENU, DEX_MENU, COIN_MENU, DEX_SUBMENU, COIN_SUBMENU,
     TRADE_COACH_AWAITING_INPUT  # <-- اضافه شده
 )
-from database import check_subscription, check_user_api_limit, log_api_request
+from database import (
+    check_subscription, check_user_api_limit, log_api_request,
+    check_tnt_analysis_limit, record_tnt_analysis_usage
+)
 from services import ai_service  # <-- اضافه شده
 from services.coinstats_service import coinstats_service
 from services.direct_api_service import direct_api_service
