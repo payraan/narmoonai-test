@@ -14,7 +14,6 @@ from config.constants import (
 )
 
 from database import init_db, db_manager
-from database.migration import run_migration
 
 # Import handlers (نسخه اصلاح و تمیز شده)
 from handlers.handlers import (
@@ -94,8 +93,6 @@ def main():
     try:
         # ایجاد پایگاه داده
         print("🔧 Initializing database...")
-        init_db()
-        run_migration()  # اجرای migration
         # auto_migrate_tnt_system()  # Disabled for SQLAlchemy
         print("✅ Database ready!")
         

@@ -1,3 +1,4 @@
+import random
 import asyncio
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup

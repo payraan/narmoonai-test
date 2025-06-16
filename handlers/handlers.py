@@ -1,3 +1,4 @@
+import random
 import logging
 import os
 import asyncio
@@ -16,6 +17,7 @@ from telegram.ext import (
 )
 
 from config import constants as c
+from config.settings import SOLANA_WALLETS
 from config.constants import (
     MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
     SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS,
