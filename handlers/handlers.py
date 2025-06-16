@@ -284,7 +284,7 @@ async def handle_analysis_type_selection(update: Update, context: ContextTypes.D
         )
         
         # تنظیم متغیرهای لازم برای تحلیل مدرن
-        context.user_data['selected_strategy'] = 'narmoon_ai'  # فعلاً همان استراتژی
+        context.user_data['selected_strategy'] = 'modern_vision'
         context.user_data['expected_images'] = 1  # فقط یک تصویر
         context.user_data['received_images'] = []
         
@@ -591,7 +591,8 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     temp_file_path = temp_file.name
         
                 # Get AI analysis
-                ai_response = await generate_tnt_analaysis(user_id, 'narmoon_ai', temp_file_path)
+                selected_strategy = context.user_data.get('selected_strategy', 'narmoon_ai')
+                ai_response = await generate_tnt_analaysis(user_id, selected_strategy, temp_file_path)
         
                 # Clean up temporary file
                 os.unlink(temp_file_path)
