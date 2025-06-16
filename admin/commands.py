@@ -1,7 +1,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from config.settings import ADMIN_ID
-from database import activate_subscription, get_user_info, get_user_api_stats, get_connection
+from database import activate_subscription, get_connection  # دو تابع حذف شدند
+from database.repository import UserRepository, ApiRequestRepository # این خط جدید است
 
 async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """فعال‌سازی اشتراک کاربر توسط ادمین (فرمت: /activate user_id duration plan_type)"""
@@ -118,7 +119,7 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = int(args[0])
         
         # دریافت اطلاعات کاربر
-        user_info = get_user_info(user_id)
+        user_info = UserRepository.get_user_info(user_id)
         
         if not user_info:
             await update.message.reply_text(f"کاربری با شناسه {user_id} یافت نشد.")
@@ -128,7 +129,7 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         transactions = user_info["transactions"]
         
         # دریافت آمار API
-        api_stats = get_user_api_stats(user_id)
+        api_stats = ApiRequestRepository.get_user_api_stats(user_id)
         
         # نمایش اطلاعات کاربر
         response = f"""
