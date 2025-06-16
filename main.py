@@ -24,7 +24,6 @@ from handlers.handlers import (
     terms_and_conditions, terms_and_conditions_page2, terms_and_conditions_page3,
     subscription_plans, support_contact,
     handle_tnt_plan_selection, handle_analysis_type_selection,
-    debug_callback_handler,
 )
 
 from handlers.crypto_handlers import (
@@ -125,7 +124,7 @@ def main():
                 CallbackQueryHandler(terms_and_conditions_page2, pattern="^terms_page2$"),
                 CallbackQueryHandler(terms_and_conditions_page3, pattern="^terms_page3$"),
                 CallbackQueryHandler(show_faq_page2, pattern="^faq_page2$"),
-                CallbackQueryHandler(debug_callback_handler),
+                # CallbackQueryHandler(debug_callback_handler),  # ← کامنت شده
                 CallbackQueryHandler(trade_coach_handler, pattern='^trade_coach$'),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$"),

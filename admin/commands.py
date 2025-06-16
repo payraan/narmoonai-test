@@ -1,8 +1,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from config.settings import ADMIN_ID
-from database import activate_subscription, get_connection  # دو تابع حذف شدند
-from database.repository import UserRepository, ApiRequestRepository # این خط جدید است
+from database import activate_subscription, get_connection, get_user_api_stats
+from database.repository import UserRepository
 
 async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """فعال‌سازی اشتراک کاربر توسط ادمین (فرمت: /activate user_id duration plan_type)"""
@@ -102,6 +102,13 @@ async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش اطلاعات کاربر برای ادمین"""
+    
+    # === شروع بلوک دیباگ ===
+    user_id = update.effective_user.id
+    print(f"🔍 DEBUG: دستور /userinfo از کاربر {user_id} دریافت شد")
+    print(f"🔍 DEBUG: نوع user_id: {type(user_id)}")
+    print(f"🔍 DEBUG: args: {context.args}")
+
     # بررسی دسترسی ادمین
     if update.effective_user.id != ADMIN_ID:
         return
@@ -129,16 +136,16 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         transactions = user_info["transactions"]
         
         # دریافت آمار API
-        api_stats = ApiRequestRepository.get_user_api_stats(user_id)
+        api_stats = get_user_api_stats(user_id)
         
         # نمایش اطلاعات کاربر
         response = f"""
 👤 اطلاعات کاربر:
-شناسه: {user_data[0]}
-نام کاربری: {user_data[1] or 'نامشخص'}
-تاریخ پایان اشتراک: {user_data[2] or 'ندارد'}
-نوع اشتراک: {user_data[3] or 'ندارد'}
-وضعیت اشتراک: {'فعال' if user_data[4] else 'غیرفعال'}
+شناسه: {user_data.user_id}
+نام کاربری: {user_data.username or 'نامشخص'}
+تاریخ پایان اشتراک: {user_data.subscription_end or 'ندارد'}
+نوع اشتراک: {user_data.subscription_type or 'ندارد'}
+وضعیت اشتراک: {'فعال' if user_data.is_active else 'غیرفعال'}
 
 📊 آمار API:
 درخواست‌های امروز: {api_stats['today']}
