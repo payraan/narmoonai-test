@@ -115,14 +115,14 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش وضعیت اشتراک کاربر"""
     user_id = update.effective_user.id
     try:
-        user = await get_user_info(user_id)
-        api_stats = await get_user_api_stats(user_id)
+        user = get_user_info(user_id)
+        api_stats = get_user_api_stats(user_id)
         if not user:
             await update.message.reply_text("❌ کاربر یافت نشد!")
             return
         
-        plan_type = user.tnt_plan_type if user.tnt_plan_type else 'رایگان'
-        is_active = '✅ فعال' if user.is_tnt_plan_active else '❌ غیرفعال'
+        plan_type = user.get('tnt_plan_type', 'رایگان')
+        is_active = '✅ فعال' if user.get('is_tnt_plan_active', False) else '❌ غیرفعال'
         message = f"""📊 **وضعیت اشتراک شما**
 
 🎯 **پلن TNT:** {plan_type}
