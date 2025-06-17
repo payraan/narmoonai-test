@@ -210,7 +210,7 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_market_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش لیست بازارها برای انتخاب"""
-   
+        
     market_buttons = [
         [InlineKeyboardButton("🪙 رمزارزها", callback_data="market_crypto")],
         [
@@ -223,13 +223,19 @@ async def show_market_selection(update: Update, context: ContextTypes.DEFAULT_TY
         ],
         [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
     ]
- 
-    market_markup = InlineKeyboardMarkup(market_buttons)
+        
+    market_markup = InlineKeyboardMarkup(market_buttons) 
     
-    await update.callback_query.edit_message_text(
-        "🎯 لطفاً بازار مورد نظر خود را انتخاب کنید:",
-        reply_markup=market_markup
-    )
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            "🎯 لطفاً بازار مورد نظر خود را انتخاب کنید:",
+            reply_markup=market_markup
+        )
+    else:
+        await update.message.reply_text(
+            "🎯 لطفاً بازار مورد نظر خود را انتخاب کنید:",
+            reply_markup=market_markup
+        )
     
     return SELECTING_MARKET
 

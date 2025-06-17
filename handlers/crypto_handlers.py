@@ -1588,17 +1588,25 @@ async def trade_coach_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     """شروع مربی ترید با UI یکپارچه"""
     from .ui_helpers import main_menu_only, STANDARD_MESSAGES
     
-    query = update.callback_query
-    await query.answer()
-    
-    await query.edit_message_text(
+    message_text = (
         "به بخش مربی ترید خوش آمدید! 🧠\n\n"
         "می‌توانید سوالات خود را در مورد مدیریت ریسک، روانشناسی بازار "
         "و استراتژی‌های معاملاتی بپرسید یا نموداری ارسال کنید.\n\n"
-        "🔹 سوال یا نمودار خود را بفرستید:",
-        reply_markup=main_menu_only()
+        "🔹 سوال یا نمودار خود را بفرستید:"
     )
     
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(
+            message_text,
+            reply_markup=main_menu_only()
+        )
+    else:
+        await update.message.reply_text(
+            message_text,
+            reply_markup=main_menu_only()
+        )
+        
     return TRADE_COACH_AWAITING_INPUT
 
 async def trade_coach_prompt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

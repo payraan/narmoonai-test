@@ -2,7 +2,8 @@
 
 import asyncio
 import logging
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler, ContextTypes
 from telegram.error import Conflict
 
 from config.settings import TELEGRAM_TOKEN
@@ -14,6 +15,7 @@ from config.constants import (
 )
 
 from database import init_db, db_manager
+from database.repository import get_user_info, get_user_api_stats
 
 # Import handlers (نسخه اصلاح و تمیز شده)
 from handlers.handlers import (
@@ -24,6 +26,7 @@ from handlers.handlers import (
     terms_and_conditions, terms_and_conditions_page2, terms_and_conditions_page3,
     subscription_plans, support_contact,
     handle_tnt_plan_selection, handle_analysis_type_selection,
+    show_analysis_type_selection, show_referral_panel,
 )
 
 from handlers.crypto_handlers import (
@@ -86,6 +89,90 @@ def safe_migration():
             print(f"⚠️ Migration warning: {e}")
             return True  # ادامه می‌دهیم حتی اگر migration مشکل داشته باشد
 
+# Wrapper هوشمند برای تبدیل callback handlers به command handlers
+def create_command_wrapper(callback_handler):
+    """Wrapper برای تبدیل callback handlers به command handlers"""
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        class MockQuery:
+            async def answer(self):
+                pass
+            async def edit_message_text(self, text, reply_markup=None, parse_mode=None, **kwargs):
+                await update.message.reply_text(
+                    text,
+                    reply_markup=reply_markup,
+                    parse_mode=parse_mode,
+                    **kwargs
+                )
+        mock_update = type('MockUpdate', (), {
+            'callback_query': MockQuery(),
+            'effective_user': update.effective_user
+        })()
+        return await callback_handler(mock_update, context)
+    return wrapper
+
+# تابع /status
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش وضعیت اشتراک کاربر"""
+    user_id = update.effective_user.id
+    try:
+        user = await get_user_info(user_id)
+        api_stats = await get_user_api_stats(user_id)
+        if not user:
+            await update.message.reply_text("❌ کاربر یافت نشد!")
+            return
+        
+        plan_type = user.tnt_plan_type if user.tnt_plan_type else 'رایگان'
+        is_active = '✅ فعال' if user.is_tnt_plan_active else '❌ غیرفعال'
+        message = f"""📊 **وضعیت اشتراک شما**
+
+🎯 **پلن TNT:** {plan_type}
+📅 **وضعیت:** {is_active}
+📈 **استفاده امروز:** {api_stats.get('today', 0)} درخواست
+📊 **کل استفاده:** {api_stats.get('total', 0)} درخواست"""
+        
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        keyboard = [[InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")]]
+        
+        await update.message.reply_text(
+            message,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        print(f"Error in status_command: {e}")
+        await update.message.reply_text("❌ خطا در دریافت اطلاعات.")
+
+# تابع /help
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """راهنمای کامل دستورات ربات"""
+    help_text = """🤖 **راهنمای ربات نارموون**
+
+🏠 **منوهای اصلی:**
+/start - شروع ربات
+/crypto - منوی رمزارزها
+/analyze - تحلیل نمودار
+/coach - مربی ترید
+
+💰 **اشتراک و حساب:**
+/subscription - خرید اشتراک
+/status - وضعیت اشتراک من
+/referral - پنل رفرال
+
+ℹ️ **راهنمایی:**
+/help - این راهنما
+/support - پشتیبانی
+/cancel - لغو عملیات
+
+💡 **نکته:** برای شروع، دستور /start را بزنید!"""
+    
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    keyboard = [[InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")]]
+    await update.message.reply_text(
+        help_text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
+
 def main():
     """تابع اصلی با مدیریت خطای بهبود یافته"""
     
@@ -117,7 +204,11 @@ def main():
 
     # تعریف conversation handler
     conv_handler = ConversationHandler( 
-        entry_points=[CommandHandler("start", start)],
+        entry_points=[
+            CommandHandler("start", start),
+            CommandHandler("analyze", show_market_selection),
+            CommandHandler("coach", trade_coach_handler),
+        ],
         states={
             MAIN_MENU: [
                 CallbackQueryHandler(handle_tnt_plan_selection, pattern="^(tnt_mini|tnt_plus|tnt_max)$"),  # اول این
@@ -201,6 +292,14 @@ def main():
     
     # افزودن handlers
     app.add_handler(conv_handler)
+
+    # Command handlers برای menu shortcuts با استفاده از Wrapper
+    app.add_handler(CommandHandler("subscription", create_command_wrapper(subscription_plans)))
+    app.add_handler(CommandHandler("referral", create_command_wrapper(show_referral_panel)))
+    app.add_handler(CommandHandler("support", create_command_wrapper(support_contact)))
+    app.add_handler(CommandHandler("status", status_command))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("crypto", crypto_menu))
 
     # Command handlers برای menu shortcuts
     app.add_handler(CommandHandler("analyze", show_market_selection))
