@@ -187,8 +187,9 @@ def main():
             ],
             TRADE_COACH_AWAITING_INPUT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, trade_coach_prompt_handler),
-                MessageHandler(filters.PHOTO, trade_coach_prompt_handler)
-        ],       
+                MessageHandler(filters.PHOTO, trade_coach_prompt_handler),
+                CallbackQueryHandler(trade_coach_handler, pattern="^continue_coach$"),
+            ],
         },
         fallbacks=[
             CommandHandler("cancel", cancel),

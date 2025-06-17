@@ -1,6 +1,7 @@
 import random
 import asyncio
 import os
+from .ui_helpers import enhanced_back_navigation, main_menu_button
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
@@ -36,10 +37,12 @@ def escape_markdown_v2(text):
 
 async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش منوی رمزارز با اطلاعات بازار به‌روزرسانی شده"""
+    from .ui_helpers import main_menu_button, STANDARD_MESSAGES
+    
     query = update.callback_query
     if query:
         await query.answer()
-        await query.edit_message_text("⏳ در حال دریافت آمار بازار...")
+        await query.edit_message_text(STANDARD_MESSAGES["PROCESSING"])
 
     try:
         # دریافت اطلاعات از APIهای مختلف
@@ -74,11 +77,11 @@ async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         message += "\n🔹 لطفاً یکی از گزینه‌ها را انتخاب کنید:"
         
-        # دکمه‌های منو
+        # ✅ استفاده از UI Helper
         keyboard = [
             [InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")],
             [InlineKeyboardButton("💰 نارموون کوین", callback_data="narmoon_coin")],
-            [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
+            [main_menu_button()]  # ✅ استفاده از helper
         ]
 
         if query:
@@ -96,58 +99,57 @@ async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         print(f"Error in crypto_menu: {e}")
+        
+        # ✅ استفاده از UI Helper برای خطا
+        from .ui_helpers import main_menu_only
         error_message = "🪙 **منوی رمزارز**\n\nلطفاً یکی از گزینه‌ها را انتخاب کنید:"
         keyboard = [
             [InlineKeyboardButton("🔄 نارموون دکس", callback_data="narmoon_dex")],
             [InlineKeyboardButton("💰 نارموون کوین", callback_data="narmoon_coin")],
-            [InlineKeyboardButton("🔙 بازگشت", callback_data="main_menu")]
+            [main_menu_button()]
         ]
 
         if query:
             await query.edit_message_text(
                 error_message,
                 reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
             )
         else:
             await update.message.reply_text(
                 error_message,
                 reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
             )
 
     return CRYPTO_MENU
 
 async def dex_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """منوی نارموون دکس"""
+    from .ui_helpers import main_menu_button
+    
     query = update.callback_query
     await query.answer()
 
     user_id = update.effective_user.id
     has_premium = check_subscription(user_id)
 
-    dex_options = {
-        'token_info': '🔍 اطلاعات توکن',
-        'trending_tokens': '🔥 توکن های داغ', 
-        'recently_updated': '🔄 توکن های آپدیت',
-        'boosted_tokens': '🚀 توکن‌های تقویت‌شده',
-        'token_snipers': '🎯 اسنایپرهای توکن',
-        'token_holders': '👥 بررسی هولدرها',
-    }
-
     keyboard = [
-    [
-        InlineKeyboardButton("🔍 اطلاعات توکن", callback_data="dex_token_info"),
-        InlineKeyboardButton("🔥 توکن های داغ", callback_data="dex_trending_tokens")
-    ],
-    [
-        InlineKeyboardButton("🔄 توکن‌های آپدیت", callback_data="dex_recently_updated"),
-        InlineKeyboardButton("🚀 توکن‌های تقویت‌شده", callback_data="dex_boosted_tokens")
-    ],
-    [
-        InlineKeyboardButton("🎯 اسنایپرهای توکن", callback_data="dex_token_snipers"),
-        InlineKeyboardButton("👥 بررسی هولدر ها", callback_data="dex_token_holders")
-    ],
-    [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
-] 
+        [
+            InlineKeyboardButton("🔍 اطلاعات توکن", callback_data="dex_token_info"),
+            InlineKeyboardButton("🔥 توکن های داغ", callback_data="dex_trending_tokens")
+        ],
+        [
+            InlineKeyboardButton("🔄 توکن‌های آپدیت", callback_data="dex_recently_updated"),
+            InlineKeyboardButton("🚀 توکن‌های تقویت‌شده", callback_data="dex_boosted_tokens")
+        ],
+        [
+            InlineKeyboardButton("🎯 اسنایپرهای توکن", callback_data="dex_token_snipers"),
+            InlineKeyboardButton("👥 بررسی هولدر ها", callback_data="dex_token_holders")
+        ],
+        [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")],
+        [main_menu_button()]  # ✅ استفاده از helper
+    ] 
 
     await query.edit_message_text(
         "🔄 **نارموون دکس**\n\n"
@@ -161,19 +163,13 @@ async def dex_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def coin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """منوی نارموون کوین"""
+    from .ui_helpers import main_menu_button
+    
     query = update.callback_query
     await query.answer()
 
     user_id = update.effective_user.id
     has_premium = check_subscription(user_id)
-
-    coin_options = {
-        'general_search': '🔎 جستجوی کوین ها',
-        'trending_coins': '🔥 کوین های داغ',
-        'global_stats': '🌍 آمار جهانی کریپتو',
-        'defi_stats': '🏦 آمار DeFi',
-        'companies_treasury': '🏢 ذخایر شرکت‌ها'
-    }
 
     keyboard = [
         [InlineKeyboardButton("🔎 جستجوی کوین ها", callback_data="coin_general_search")],
@@ -185,7 +181,8 @@ async def coin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🏦 آمار DeFi", callback_data="coin_defi_stats"),
             InlineKeyboardButton("🏢 ذخایر شرکت‌ها", callback_data="coin_companies_treasury")
         ],
-        [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")]
+        [InlineKeyboardButton("🔙 بازگشت", callback_data="crypto")],
+        [main_menu_button()]  # ✅ استفاده از helper
     ]
 
     await query.edit_message_text(
@@ -434,10 +431,13 @@ async def handle_trending_options(update: Update, context: ContextTypes.DEFAULT_
             message = format_combined_solana_trending(combined_data)
             
         # دکمه بازگشت
-        # دکمه بازگشت
+        from .ui_helpers import enhanced_back_navigation
+        
         keyboard = [
             [InlineKeyboardButton("🤖 تحلیل با هوش مصنوعی TNT", callback_data="tnt_analysis_crypto")],
-            [InlineKeyboardButton("🔙 بازگشت به دکس", callback_data="narmoon_dex")]
+            [InlineKeyboardButton("🔙 بازگشت به دکس", callback_data="narmoon_dex")],
+            [InlineKeyboardButton("🪙 منوی رمزارز", callback_data="crypto")],
+            [InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")]
         ]
             
         await query.edit_message_text(
@@ -504,7 +504,9 @@ async def handle_trending_coins_list(update: Update, context: ContextTypes.DEFAU
         
         keyboard = [
             [InlineKeyboardButton("🤖 تحلیل با هوش مصنوعی TNT", callback_data="tnt_analysis_crypto")],
-            [InlineKeyboardButton("🔙 بازگشت به کوین", callback_data="narmoon_coin")]
+            [InlineKeyboardButton("🔙 بازگشت به کوین", callback_data="narmoon_coin")],
+            [InlineKeyboardButton("🪙 منوی رمزارز", callback_data="crypto")],
+            [InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")]
         ]
         
         await query.edit_message_text(
@@ -1583,49 +1585,30 @@ def format_snipers_info(data):
     return message
 
 async def trade_coach_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Starts the Trade Coach conversation and prompts the user."""
+    """شروع مربی ترید با UI یکپارچه"""
+    from .ui_helpers import main_menu_only, STANDARD_MESSAGES
     
-    # Handle both callback_query and message
-    if update.callback_query:
-        query = update.callback_query
-        await query.answer()
-        
-        keyboard = [[KeyboardButton("بازگشت به منوی اصلی")]]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-        
-        await query.edit_message_text(
-            "به بخش مربی ترید خوش آمدید! 🧠\n\n"
-            "می‌توانید سوالات خود را در مورد مدیریت ریسک، روانشناسی بازار و استراتژی‌های معاملاتی بپرسید یا نموداری از تحلیل خود را ارسال کنید تا با سوالات کلیدی شما را راهنمایی کنم.\n\n"
-            "لطفاً سوال یا نمودار خود را بفرستید.",
-            reply_markup=None
-        )
-        
-        # Send keyboard in separate message
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="برای ادامه، سوال خود را بپرسید:",
-            reply_markup=reply_markup
-        )
-        
-    else:
-        # Handle regular message
-        keyboard = [[KeyboardButton("بازگشت به منوی اصلی")]]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-        await update.message.reply_text(
-            "به بخش مربی ترید خوش آمدید! 🧠\n\n"
-            "می‌توانید سوالات خود را در مورد مدیریت ریسک، روانشناسی بازار و استراتژی‌های معاملاتی بپرسید یا نموداری از تحلیل خود را ارسال کنید تا با سوالات کلیدی شما را راهنمایی کنم.\n\n"
-            "لطفاً سوال یا نمودار خود را بفرستید.",
-            reply_markup=reply_markup
-        )
+    query = update.callback_query
+    await query.answer()
+    
+    await query.edit_message_text(
+        "به بخش مربی ترید خوش آمدید! 🧠\n\n"
+        "می‌توانید سوالات خود را در مورد مدیریت ریسک، روانشناسی بازار "
+        "و استراتژی‌های معاملاتی بپرسید یا نموداری ارسال کنید.\n\n"
+        "🔹 سوال یا نمودار خود را بفرستید:",
+        reply_markup=main_menu_only()
+    )
     
     return TRADE_COACH_AWAITING_INPUT
 
 async def trade_coach_prompt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handles the user's input for the Trade Coach with proper cleanup."""
+    """پردازش ورودی مربی ترید"""
+    from .ui_helpers import main_menu_only, multi_row_keyboard, main_menu_button, STANDARD_MESSAGES
+    
     user_id = update.message.from_user.id
     prompt_text = update.message.text or update.message.caption or ""
     
-    processing_message = await update.message.reply_text("⏳ در حال پردازش، لطفاً صبر کنید...")
+    processing_message = await update.message.reply_text(STANDARD_MESSAGES["PROCESSING"])
     
     photo_path = None  # مقداردهی اولیه مسیر عکس
     try:
@@ -1638,33 +1621,39 @@ async def trade_coach_prompt_handler(update: Update, context: ContextTypes.DEFAU
         result = await ai_service.get_trade_coach_response(user_id=user_id, text_prompt=prompt_text, photo_path=photo_path)
         
         # حذف پیام "در حال پردازش"
-        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=processing_message.message_id)
-
-        # مدیریت پاسخ دریافت شده
+        await context.bot.delete_message(
+            chat_id=update.effective_chat.id, 
+            message_id=processing_message.message_id
+        )
+        
         if result.get("success"):
             await update.message.reply_text(result["response"])
-        elif result.get("error") == "LIMIT_EXCEEDED":
-            await update.message.reply_text("شما به سقف استفاده روزانه از این قابلیت رسیده‌اید.")
         else:
-            await update.message.reply_text("متاسفانه خطایی در ارتباط با هوش مصنوعی رخ داد. لطفاً دوباره تلاش کنید.")
-
+            await update.message.reply_text(STANDARD_MESSAGES["ERROR"])
+        
+        # ✅ ارسال دکمه‌های ادامه در پیام جداگانه
+        await update.message.reply_text(
+            "💬 می‌توانید سوال بعدی را بپرسید:",
+            reply_markup=multi_row_keyboard([
+                [InlineKeyboardButton("❓ سوال جدید", callback_data="continue_coach")],
+                [main_menu_button()]
+            ])
+        )
+        
     except Exception as e:
-        # در صورت بروز هرگونه خطا، پیام "در حال پردازش" را حذف و به کاربر اطلاع بده
-        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=processing_message.message_id)
-        print(f"❌ An error occurred in trade_coach_prompt_handler: {e}")
-        await update.message.reply_text("⚠️ متاسفانه در پردازش درخواست شما خطایی رخ داد. لطفاً دوباره تلاش کنید.")
+        await context.bot.delete_message(
+            chat_id=update.effective_chat.id, 
+            message_id=processing_message.message_id
+        )
+        await update.message.reply_text(
+            STANDARD_MESSAGES["ERROR"],
+            reply_markup=main_menu_only()
+        )
     
     finally:
         # این بلوک همیشه اجرا می‌شود و فایل موقت را پاک می‌کند
         if photo_path and os.path.exists(photo_path):
             os.remove(photo_path)
             print(f"🧹 Cleaned up temporary file: {photo_path}")
-
-    # نمایش منوی اصلی در انتها
-    # Keep user in trade coach conversation instead of returning to main menu
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="💬 می‌تونید سوال بعدی‌تون رو بپرسید یا /start را بزنید تا به منوی اصلی برگردید.",
-        parse_mode='HTML'
-    )
+    
     return TRADE_COACH_AWAITING_INPUT
