@@ -15,7 +15,6 @@ from config.constants import (
 )
 
 from database import init_db, db_manager
-from database.repository import get_user_info, get_user_api_stats
 
 # Import handlers (نسخه اصلاح و تمیز شده)
 from handlers.handlers import (

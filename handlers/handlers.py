@@ -28,10 +28,8 @@ from config.constants import (
 from . import crypto_handlers  # <-- اضافه شده و بسیار مهم
 
 # توابع این فایل دیگر مستقیما به اینها نیاز ندارند، اما برای حفظ ساختار فعلی نگه داشته شده‌اند
-from database import (
-    check_subscription, register_user, activate_subscription,
-    check_tnt_analysis_limit, record_tnt_analysis_usage
-)
+from database import db_manager
+from database.repository import AdminRepository
 from utils.helpers import load_static_texts
 
 # راه‌اندازی لاگر
@@ -84,7 +82,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ثبت کاربر در دیتابیس
     user_id = update.effective_user.id
     username = update.effective_user.username
-    register_user(user_id, username)
+    #register_user(user_id, username)
     
     # پردازش کد رفرال اگر وجود داشته باشد
     if context.args and len(context.args) > 0:

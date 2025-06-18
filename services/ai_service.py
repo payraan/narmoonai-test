@@ -4,9 +4,9 @@ from datetime import date
 import openai
 
 from config.settings import OPENAI_API_KEY
-from database import repository
+from database import db_manager
+from database.repository import AdminRepository  # فعلاً فقط این repository داریم
 from resources.prompts.strategies import STRATEGY_PROMPTS
-from database import get_user_tnt_plan
 
 # راه‌اندازی لاگر
 logger = logging.getLogger(__name__)
@@ -38,7 +38,8 @@ async def generate_tnt_analaysis(user_id: int, prompt_key: str, photo_path: str 
     try:
         # ۱. بررسی اشتراک کاربر
         # Check if user has active TNT plan
-        tnt_plan = get_user_tnt_plan(user_id)
+        with db_manager.get_session() as session:
+            tnt_plan = TntRepository.get_user_plan(user_id)
         has_plan = tnt_plan and tnt_plan.get("plan_active", False) and tnt_plan.get("plan_type") != "FREE"
 
         if not has_plan:
@@ -97,8 +98,8 @@ async def get_trade_coach_response(user_id: int, text_prompt: str, photo_path: s
     try:
         # ۱. بررسی اشتراک کاربر
         # Check if user has active TNT plan using existing function
-        from database import get_user_tnt_plan
-        tnt_plan = get_user_tnt_plan(user_id)
+        with db_manager.get_session() as session:
+            tnt_plan = TntRepository.get_user_plan(user_id)
         has_plan = tnt_plan and tnt_plan.get("plan_active", False) and tnt_plan.get("plan_type") != "FREE"
 
         # ۲. بررسی محدودیت برای کاربران رایگان
