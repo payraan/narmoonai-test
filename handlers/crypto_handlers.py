@@ -10,7 +10,7 @@ from config.constants import (
     TRADE_COACH_AWAITING_INPUT  # <-- اضافه شده
 )
 from database import db_manager
-from database.repository import AdminRepository
+from database.repository import AdminRepository, TntRepository
 from services import ai_service  # <-- اضافه شده
 from services.coinstats_service import coinstats_service
 from services.direct_api_service import direct_api_service
@@ -463,8 +463,9 @@ async def handle_tnt_analysis_request(update: Update, context: ContextTypes.DEFA
     user_id = update.effective_user.id
     
     # بررسی محدودیت TNT
-    from database import check_tnt_analysis_limit
-    limit_check = check_tnt_analysis_limit(user_id)
+    with db_manager.get_session() as session:
+        tnt_repo = TntRepository(session)
+        limit_check = tnt_repo.check_analysis_limit(user_id)
     
     if limit_check["allowed"]:
         # تنظیم بازار رمزارز و انتقال به انتخاب تایم‌فریم

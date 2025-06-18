@@ -267,3 +267,33 @@ class AdminRepository:
             self.db_session.rollback()
             logger.error(f"Error resetting sequences: {e}")
             return False
+
+class TntRepository:
+    """Repository for TNT-related operations for users."""
+
+    def __init__(self, db_session: Session):
+        self.db_session = db_session
+
+    def check_analysis_limit(self, user_id: int) -> bool:
+        """
+        Checks if a user has reached their daily TNT analysis limit.
+        """
+        try:
+            user = self.db_session.query(User).filter_by(user_id=user_id).first()
+            if not user or not user.tnt_plan_type or user.tnt_plan_type == 'FREE':
+                return False
+            
+            # TODO: منطق بررسی محدودیت روزانه
+            return True  # موقتاً
+            
+        except Exception as e:
+            logger.error(f"Error in check_analysis_limit: {e}")
+            return False
+
+    def record_analysis_usage(self, user_id: int):
+        """Records a new TNT analysis usage for the user."""
+        try:
+            # TODO: ثبت استفاده جدید
+            pass
+        except Exception as e:
+            logger.error(f"Error in record_analysis_usage: {e}")

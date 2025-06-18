@@ -1,9 +1,9 @@
 """
-Database package initialization - SQLAlchemy ORM Version
+Database package initialization - SQLAlchemy ORM Version with New Repositories
 """
 from .connection import db_manager, init_db, get_connection, get_session
 from .models import Base, User, Transaction, ApiRequest, TntUsageTracking, TntPlan, Referral, Commission, ReferralSetting
-from .repository import AdminRepository
+from .repository import AdminRepository, TntRepository
 
 __all__ = [
     # Core components
@@ -13,6 +13,6 @@ __all__ = [
     'Base', 'User', 'Transaction', 'ApiRequest', 'TntUsageTracking', 
     'TntPlan', 'Referral', 'Commission', 'ReferralSetting',
     
-    # New Repository
-    'AdminRepository'
+    # New Repositories
+    'AdminRepository', 'TntRepository'
 ]
