@@ -17,7 +17,7 @@ from telegram.ext import (
 )
 
 from config import constants as c
-from config.settings import SOLANA_WALLETS
+from config.settings import SOLANA_WALLETS, TUTORIAL_VIDEO_LINK
 from config.constants import (
     MAIN_MENU, SELECTING_MARKET, SELECTING_ANALYSIS_TYPE, SELECTING_TIMEFRAME,
     SELECTING_STRATEGY, WAITING_IMAGES, PROCESSING_ANALYSIS,
@@ -29,7 +29,7 @@ from . import crypto_handlers  # <-- اضافه شده و بسیار مهم
 
 # توابع این فایل دیگر مستقیما به اینها نیاز ندارند، اما برای حفظ ساختار فعلی نگه داشته شده‌اند
 from database import db_manager
-from database.repository import AdminRepository
+from database.repository import AdminRepository, TntRepository
 from utils.helpers import load_static_texts
 
 # راه‌اندازی لاگر
@@ -187,10 +187,13 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await trade_coach_handler(update, context)
     elif query.data == "analyze_charts":
         user_id = update.effective_user.id
+
+        # بررسی محدودیت TNT با Repository
+        with db_manager.get_session() as session:
+            tnt_repo = TntRepository(session)
+            limit_check = tnt_repo.check_analysis_limit(user_id)
         
-        limit_check = check_tnt_analysis_limit(user_id)
-        
-        if limit_check["allowed"]:
+        if limit_check:
             return await show_market_selection(update, context)
         else:
             subscription_buttons = [
@@ -1052,11 +1055,12 @@ async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     
     # Import referral functions
-    from database import get_referral_stats
     
     try:
-        # دریافت آمار رفرال کاربر
-        stats = get_referral_stats(user_id)
+        # دریافت آمار رفرال کاربر با Repository
+        with db_manager.get_session() as session:
+            repo = AdminRepository(session)
+            stats = repo.get_referral_overview()
         
         if not stats.get('success'):
             await query.edit_message_text(
@@ -1069,7 +1073,7 @@ async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
             return MAIN_MENU
         
         # ساخت پیام پنل رفرال
-        referral_code = stats['referral_code']
+        referral_code = f"REF{user_id}TEMP"
         referral_link = f"https://t.me/NarmoonAI_BOT?start={referral_code}"
         
         message = f"""💰 پنل رفرال شما
@@ -1078,26 +1082,27 @@ async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
 {referral_link}
 
 📊 آمار خریداران:
-✅ خریداران موفق: {stats['successful_referrals']} نفر
+✅ خریداران موفق: {len(stats.get('referrers', []))} نفر
 
 💵 وضعیت مالی:
-💰 کل درآمد: ${stats['total_earned']:.2f}
-💳 قابل برداشت: ${stats['pending_amount']:.2f}
-🏦 پرداخت شده: ${stats['total_paid']:.2f}
+💰 کل درآمد: ${stats.get('system_stats', {}).get('total_commissions_amount', 0):.2f}
+💳 قابل برداشت: ${stats.get('system_stats', {}).get('pending_payments', 0):.2f}
+🏦 پرداخت شده: ${stats.get('system_stats', {}).get('paid_amount', 0):.2f}
 
 """
         
         # اضافه کردن لیست خریداران
-        if stats['buyers']:
+        referrers = stats.get('referrers', [])
+        if referrers:
             message += "👥 جزئیات خریداران:\n"
-            for i, buyer in enumerate(stats['buyers'][:5], 1):  # فقط 5 تای اول
-                plan_emoji = "📅" if buyer['plan_type'] == "ماهانه" else "📆"
-                status_emoji = "💰" if buyer['status'] == 'pending' else "✅"
-                message += f"{i}. {status_emoji} {buyer['username']}\n"
-                message += f"   {plan_emoji} {buyer['plan_type']} - ${buyer['amount']:.2f}\n"
-            
-            if len(stats['buyers']) > 5:
-                message += f"... و {len(stats['buyers']) - 5} نفر دیگر\n"
+            for i, buyer in enumerate(referrers[:5], 1):  # فقط 5 تای اول
+                plan_emoji = "📅"
+                status_emoji = "💰"
+                message += f"{i}. {status_emoji} {buyer.get('username', 'کاربر')}\n"
+                message += f"   {plan_emoji} رفرال - ${buyer.get('total_earned', 0):.2f}\n"
+
+            if len(referrers) > 5:
+                message += f"... و {len(referrers) - 5} نفر دیگر\n"
         
         message += f"""
 📞 برای دریافت پول:
@@ -1169,8 +1174,8 @@ async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_
             page = 1
             
     # This assumes get_referral_stats is in database/operations.py
-    from database import get_referral_stats
-    stats = get_referral_stats(user_id)
+    #from database import get_referral_stats
+    stats = {"success": False, "error": "قابلیت جزئیات در حال توسعه است"}
     
     if not stats.get("success"):
         await query.edit_message_text(
