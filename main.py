@@ -27,6 +27,8 @@ from handlers.handlers import (
     subscription_plans, support_contact,
     handle_tnt_plan_selection, handle_analysis_type_selection,
     show_analysis_type_selection, show_referral_panel,
+    # 🆕 REFERRAL HANDLERS - اضافه شده
+    handle_referral_copy_link, handle_referral_details, handle_noop
 )
 
 from handlers.crypto_handlers import (
@@ -211,16 +213,28 @@ def main():
         ],
         states={
             MAIN_MENU: [
-                CallbackQueryHandler(handle_tnt_plan_selection, pattern="^(tnt_mini|tnt_plus|tnt_max)$"),  # اول این
+                # 🔥 PRIORITY LEVEL 1: TNT & Subscription handlers
+                CallbackQueryHandler(handle_tnt_plan_selection, pattern="^(tnt_mini|tnt_plus|tnt_max)$"),
+    
+                # 🔥 PRIORITY LEVEL 2: Static pages handlers  
                 CallbackQueryHandler(terms_and_conditions_page2, pattern="^terms_page2$"),
                 CallbackQueryHandler(terms_and_conditions_page3, pattern="^terms_page3$"),
                 CallbackQueryHandler(show_faq_page2, pattern="^faq_page2$"),
-                # CallbackQueryHandler(debug_callback_handler),  # ← کامنت شده
+    
+                # 🆕 PRIORITY LEVEL 3: REFERRAL SYSTEM HANDLERS - جدید اضافه شده
+                CallbackQueryHandler(handle_referral_copy_link, pattern=r"^copy_link_"),
+                CallbackQueryHandler(handle_referral_details, pattern=r"^referral_details"),
+                CallbackQueryHandler(show_referral_panel, pattern="^referral_panel$"),
+                CallbackQueryHandler(handle_noop, pattern="^noop$"),
+    
+                # 🔥 PRIORITY LEVEL 4: Main feature handlers
                 CallbackQueryHandler(trade_coach_handler, pattern='^trade_coach$'),
                 CallbackQueryHandler(crypto_menu, pattern="^crypto$"),
                 CallbackQueryHandler(start, pattern="^main_menu$"),
                 CallbackQueryHandler(subscription_plans, pattern="^subscription$"),
-                CallbackQueryHandler(handle_main_menu),  # handlers عمومی بعد از specific ones
+    
+                # 🔥 PRIORITY LEVEL 5: Fallback handler (باید آخرین باشد)
+                CallbackQueryHandler(handle_main_menu),  # بدون pattern - همه چیز را می‌گیرد
             ],
             CRYPTO_MENU: [
                 CallbackQueryHandler(dex_menu, pattern="^narmoon_dex$"),
