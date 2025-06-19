@@ -274,26 +274,112 @@ class TntRepository:
     def __init__(self, db_session: Session):
         self.db_session = db_session
 
-    def check_analysis_limit(self, user_id: int) -> bool:
+    def check_analysis_limit(self, user_id: int) -> dict:
         """
         Checks if a user has reached their daily TNT analysis limit.
+        Returns dict with allowed status and details
         """
         try:
             user = self.db_session.query(User).filter_by(user_id=user_id).first()
             if not user or not user.tnt_plan_type or user.tnt_plan_type == 'FREE':
-                return False
+                return {
+                    "allowed": False,
+                    "reason": "plan_required",
+                    "message": "برای استفاده از تحلیل TNT نیاز به اشتراک دارید"
+                }
             
-            # TODO: منطق بررسی محدودیت روزانه
-            return True  # موقتاً
+            # بررسی انقضای پلن
+            if user.tnt_plan_end and datetime.now() > user.tnt_plan_end:
+                return {
+                    "allowed": False,
+                    "reason": "plan_expired",
+                    "message": "اشتراک شما منقضی شده است"
+                }
+            
+            # TODO: منطق بررسی محدودیت ساعتی و ماهانه
+            # فعلاً موقتاً اجازه می‌دهیم
+            return {
+                "allowed": True,
+                "remaining_monthly": user.tnt_monthly_limit,
+                "remaining_hourly": user.tnt_hourly_limit
+            }
             
         except Exception as e:
             logger.error(f"Error in check_analysis_limit: {e}")
-            return False
+            return {
+                "allowed": False,
+                "reason": "error",
+                "message": "خطا در بررسی محدودیت"
+            }
 
     def record_analysis_usage(self, user_id: int):
         """Records a new TNT analysis usage for the user."""
         try:
-            # TODO: ثبت استفاده جدید
-            pass
+            # TODO: ثبت استفاده جدید در جدول TntUsageTracking
+            # فعلاً فقط لاگ می‌کنیم
+            logger.info(f"Recording TNT usage for user {user_id}")
+            
         except Exception as e:
             logger.error(f"Error in record_analysis_usage: {e}")
+
+    def get_user_plan(self, user_id: int) -> dict:
+        """دریافت اطلاعات پلن فعال کاربر"""
+        try:
+            user = self.db_session.query(User).filter_by(user_id=user_id).first()
+            if not user:
+                return {"plan_active": False, "plan_type": "FREE"}
+            
+            # بررسی وضعیت پلن TNT
+            plan_active = False
+            if user.tnt_plan_type and user.tnt_plan_type != 'FREE':
+                if user.tnt_plan_end:
+                    plan_active = datetime.now() <= user.tnt_plan_end
+                else:
+                    plan_active = True  # پلن دائمی
+            
+            return {
+                "plan_active": plan_active,
+                "plan_type": user.tnt_plan_type or "FREE",
+                "plan_end": user.tnt_plan_end,
+                "monthly_limit": user.tnt_monthly_limit or 0,
+                "hourly_limit": user.tnt_hourly_limit or 0
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in get_user_plan: {e}")
+            return {"plan_active": False, "plan_type": "FREE"}
+
+    def activate_tnt_subscription(self, user_id: int, plan_name: str, duration_days: int) -> dict:
+        """فعال‌سازی اشتراک TNT"""
+        try:
+            user = self.db_session.query(User).filter_by(user_id=user_id).first()
+            if not user:
+                return {"success": False, "error": "کاربر یافت نشد"}
+            
+            # دریافت اطلاعات پلن از جدول TntPlan
+            plan = self.db_session.query(TntPlan).filter_by(
+                plan_name=plan_name, is_active=True
+            ).first()
+            
+            if not plan:
+                return {"success": False, "error": "پلن یافت نشد"}
+            
+            # بروزرسانی اطلاعات کاربر
+            user.tnt_plan_type = plan_name
+            user.tnt_monthly_limit = plan.monthly_limit
+            user.tnt_hourly_limit = plan.hourly_limit
+            user.tnt_plan_start = datetime.now()
+            user.tnt_plan_end = datetime.now() + timedelta(days=duration_days)
+            
+            self.db_session.commit()
+            
+            return {
+                "success": True,
+                "plan_name": plan_name,
+                "end_date": user.tnt_plan_end
+            }
+            
+        except Exception as e:
+            self.db_session.rollback()
+            logger.error(f"Error in activate_tnt_subscription: {e}")
+            return {"success": False, "error": str(e)}

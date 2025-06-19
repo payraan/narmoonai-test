@@ -29,6 +29,7 @@ from . import crypto_handlers  # <-- اضافه شده و بسیار مهم
 
 # توابع این فایل دیگر مستقیما به اینها نیاز ندارند، اما برای حفظ ساختار فعلی نگه داشته شده‌اند
 from database import db_manager
+from database.models import User
 from database.repository import AdminRepository, TntRepository
 from utils.helpers import load_static_texts
 
@@ -82,7 +83,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ثبت کاربر در دیتابیس
     user_id = update.effective_user.id
     username = update.effective_user.username
-    #register_user(user_id, username)
+    with db_manager.get_session() as session:
+        user = session.query(User).filter_by(user_id=user_id).first()
+        if not user:
+            user = User(
+                user_id=user_id,
+                username=username,
+                created_at=datetime.now(),
+                tnt_plan_type='FREE'
+            )
+            session.add(user)
+            session.commit()
+            logger.info(f"New user registered: {user_id} - @{username}")
     
     # پردازش کد رفرال اگر وجود داشته باشد
     if context.args and len(context.args) > 0:
@@ -431,10 +443,11 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
     # Import توابع جدید TNT
-    from database import check_tnt_analysis_limit, record_tnt_analysis_usage
     
     # بررسی محدودیت
-    limit_check = check_tnt_analysis_limit(user_id)
+    with db_manager.get_session() as session:
+        tnt_repo = TntRepository(session)
+        limit_check = tnt_repo.check_analysis_limit(user_id)
     
     if not limit_check["allowed"]:
         # تعیین نوع پیام خطا
@@ -579,7 +592,10 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         # ثبت استفاده قبل از تحلیل
-        record_success = record_tnt_analysis_usage(user_id)
+        with db_manager.get_session() as session:
+            tnt_repo = TntRepository(session)
+            tnt_repo.record_analysis_usage(user_id)
+            record_success = True
         if not record_success:
             print(f"⚠️ Warning: Failed to record usage for user {user_id}")
         
@@ -631,7 +647,9 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
         summary += f"🔧 استراتژی: {strategy_name}\n"
         
         # اضافه کردن آمار استفاده
-        updated_limit_check = check_tnt_analysis_limit(user_id)
+        with db_manager.get_session() as session:
+            tnt_repo = TntRepository(session)
+            updated_limit_check = tnt_repo.check_analysis_limit(user_id)
         if updated_limit_check["allowed"]:
             summary += f"📈 باقی‌مانده ماهانه: {updated_limit_check.get('remaining_monthly', 'نامشخص')} تحلیل\n"
             summary += f"⏱️ باقی‌مانده ساعتی: {updated_limit_check.get('remaining_hourly', 'نامشخص')} تحلیل\n"

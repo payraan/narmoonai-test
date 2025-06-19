@@ -10,7 +10,7 @@ from sqlalchemy import select, func, desc, text
 
 from config.settings import ADMIN_ID
 from database import db_manager
-from database.repository import AdminRepository
+from database.repository import AdminRepository, TntRepository
 from database.models import User, Transaction, ApiRequest, TntUsageTracking, TntPlan, Referral, Commission, ReferralSetting
 
 # ایمپورت‌ها در سطح ماژول فقط به موارد غیر پروژه‌ای محدود می‌شوند
@@ -182,7 +182,9 @@ async def admin_activate_tnt(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
 
         user_id, plan_name, duration = int(args[0]), args[1].upper(), int(args[2])
-        result = await TntRepository.activate_tnt_subscription(user_id, plan_name, duration)
+        with db_manager.get_session() as session:
+            tnt_repo = TntRepository(session)
+            result = tnt_repo.activate_tnt_subscription(user_id, plan_name, duration)
         
         if result.get("success"):
             await update.message.reply_text(f"✅ اشتراک TNT کاربر {user_id} با پلن {plan_name} فعال شد.")
