@@ -268,6 +268,35 @@ class AdminRepository:
             logger.error(f"Error resetting sequences: {e}")
             return False
 
+    def get_user_referral_details(self, user_id: int) -> dict:
+        """دریافت جزئیات رفرال کاربر"""
+        try:
+            user = self.db_session.query(User).filter_by(user_id=user_id).first()
+            if not user:
+                return {"success": False, "error": "کاربر یافت نشد"}
+            
+            referrals = self.db_session.query(Referral).filter_by(
+                referrer_id=user_id
+            ).all()
+            
+            buyers = []
+            for ref in referrals:
+                if ref.purchased:
+                    buyers.append({
+                        "username": ref.referred.username or "Unknown",
+                        "purchase_date": ref.purchase_date,
+                        "commission": ref.commission_amount
+                    })
+            
+            return {
+                "success": True,
+                "referral_code": f"REF{user_id}",
+                "buyers": buyers
+            }
+        except Exception as e:
+            logger.error(f"Error in get_user_referral_details: {e}")
+            return {"success": False, "error": str(e)}  
+
 class TntRepository:
     """Repository for TNT-related operations for users."""
 

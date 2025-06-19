@@ -21,6 +21,31 @@ from utils.crypto_formatter import (
 )
 from utils.helpers import format_token_price
 from utils.media_handler import download_photo  # <-- اضافه شده
+import logging
+logger = logging.getLogger(__name__)
+
+def check_subscription(user_id):
+    """
+    چک کردن اشتراک کاربر
+    برای بخش کریپتو همیشه True برمی‌گردونه چون رایگانه
+    """
+    return True
+
+def check_user_api_limit(user_id, has_premium=None):
+    """
+    چک کردن محدودیت API کاربر
+    برای بخش کریپتو که رایگانه، همیشه True برمی‌گردونه
+    """
+    return True
+
+def log_api_request(user_id, service_name, endpoint=None):
+    """
+    ثبت درخواست API
+    برای بخش کریپتو فقط لاگ می‌کنیم
+    """
+    logger.debug(f"API request - User: {user_id}, Service: {service_name}, Endpoint: {endpoint}")
+    return True
+
 def escape_markdown_v2(text):
     """Escape کردن کاراکترهای خاص برای Markdown V2"""
     if not text:

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """فعال‌سازی اشتراک کاربر توسط ادمین (Legacy)"""
-    from database.repository import UserRepository, ReferralRepository
+    from database.repository import AdminRepository
 
     if update.effective_user.id != ADMIN_ID:
         return
@@ -34,7 +34,8 @@ async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_id, duration, plan_type = int(args[0]), int(args[1]), args[2]
 
-        end_date = await UserRepository.activate_legacy_subscription(user_id, duration, plan_type)
+        await update.message.reply_text("⚠️ این دستور موقتاً غیرفعال است. از /activatetnt استفاده کنید.")
+        return
 
         await update.message.reply_text(f"✅ اشتراک کاربر {user_id} تا تاریخ {end_date} فعال شد.")
         # ... سایر منطق‌ها ...
@@ -46,7 +47,6 @@ async def admin_activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش اطلاعات کاربر برای ادمین"""
-    from database.repository import UserRepository, ApiRequestRepository
 
     if update.effective_user.id != ADMIN_ID:
         return
@@ -57,7 +57,8 @@ async def admin_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         user_id = int(context.args[0])
-        user_info = await UserRepository.get_user_info(user_id)
+        await update.message.reply_text("⚠️ این دستور موقتاً غیرفعال است.")
+        return
         
         if not user_info:
             await update.message.reply_text(f"کاربر {user_id} یافت نشد.")
@@ -171,16 +172,16 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def admin_activate_tnt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """فعال‌سازی اشتراک TNT توسط ادمین"""
     from database.repository import TntRepository
-
+    
     if update.effective_user.id != ADMIN_ID:
         return
-        
+    
     try:
         args = context.args
         if len(args) < 3:
             await update.message.reply_text("فرمت صحیح: /activatetnt user_id plan_name duration")
             return
-
+            
         user_id, plan_name, duration = int(args[0]), args[1].upper(), int(args[2])
         with db_manager.get_session() as session:
             tnt_repo = TntRepository(session)
@@ -188,9 +189,27 @@ async def admin_activate_tnt(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         if result.get("success"):
             await update.message.reply_text(f"✅ اشتراک TNT کاربر {user_id} با پلن {plan_name} فعال شد.")
+            
+            # ارسال پیام به کاربر
+            try:
+                user_message = f"""🎉 تبریک! اشتراک TNT شما فعال شد!
+
+📋 پلن: {plan_name}
+⏰ مدت: {duration} روز
+📅 انقضا: {result.get('end_date').strftime('%Y-%m-%d')}
+
+برای استفاده از تحلیل TNT به منوی اصلی برگردید."""
+                
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=user_message
+                )
+            except Exception as e:
+                logger.warning(f"Could not notify user {user_id}: {e}")
+                
         else:
             await update.message.reply_text(f"❌ خطا در فعال‌سازی: {result.get('error')}")
-
+    
     except Exception as e:
         logger.error(f"Error in admin_activate_tnt: {e}", exc_info=True)
         await update.message.reply_text(f"خطا: {e}")
@@ -232,7 +251,7 @@ async def admin_tnt_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🕐 **آخرین بروزرسانی:** {stats['timestamp'][:19].replace('T', ' ')}
 """
         
-        await update.message.reply_text(stats_message, parse_mode='Markdown')
+        await update.message.reply_text(stats_message)
         
     except Exception as e:
         await update.message.reply_text(f"❌ خطا در دریافت آمار TNT: {str(e)}")
@@ -259,7 +278,6 @@ async def admin_clean_database(update: Update, context: ContextTypes.DEFAULT_TYP
                 "برای تایید، دستور زیر را ارسال کنید:\n"
                 "`/cleandb CONFIRM`\n\n"
                 "**این عمل قابل بازگشت نیست!**",
-                parse_mode='Markdown'
             )
             return
 
@@ -412,7 +430,7 @@ async def admin_referral_stats(update: Update, context: ContextTypes.DEFAULT_TYP
    • کل درآمد: ${ref['total_earned']:.2f}
    • در انتظار: ${ref['pending_amount']:.2f}"""
         
-        await update.message.reply_text(message, parse_mode='Markdown')
+        await update.message.reply_text(message)
         
     except Exception as e:
         await update.message.reply_text(f"❌ خطا در دریافت آمار: {str(e)}")

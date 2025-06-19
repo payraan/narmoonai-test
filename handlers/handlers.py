@@ -1193,7 +1193,9 @@ async def handle_referral_details(update: Update, context: ContextTypes.DEFAULT_
             
     # This assumes get_referral_stats is in database/operations.py
     #from database import get_referral_stats
-    stats = {"success": False, "error": "قابلیت جزئیات در حال توسعه است"}
+    with db_manager.get_session() as session:
+        admin_repo = AdminRepository(session)
+        stats = admin_repo.get_user_referral_details(user_id)
     
     if not stats.get("success"):
         await query.edit_message_text(
