@@ -1,7 +1,9 @@
+# -*- coding: utf-8 -*-
 # این بلوک کد را جایگزین import های فعلی در بالای فایل main.py کنید
 
 import asyncio
 import logging
+from datetime import datetime
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler, ContextTypes
 from telegram.error import Conflict
@@ -15,6 +17,7 @@ from config.constants import (
 )
 
 from database import init_db, db_manager
+from database.models import User, ApiRequest
 
 # Import handlers (نسخه اصلاح و تمیز شده)
 from handlers.handlers import (
@@ -111,63 +114,95 @@ def create_command_wrapper(callback_handler):
         return await callback_handler(mock_update, context)
     return wrapper
 
-# تابع /status
+# تابع /status (نسخه اصلاح شده بدون parse_mode)
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """نمایش وضعیت اشتراک کاربر"""
     user_id = update.effective_user.id
     try:
-        user = get_user_info(user_id)
-        api_stats = get_user_api_stats(user_id)
-        if not user:
-            await update.message.reply_text("❌ کاربر یافت نشد!")
-            return
-        
-        plan_type = user.get('tnt_plan_type', 'رایگان')
-        is_active = '✅ فعال' if user.get('is_tnt_plan_active', False) else '❌ غیرفعال'
-        message = f"""📊 **وضعیت اشتراک شما**
+        # دریافت اطلاعات کاربر از دیتابیس
+        with db_manager.get_session() as session:
+            user = session.query(User).filter_by(user_id=user_id).first()
+            if not user:
+                await update.message.reply_text("❌ کاربر یافت نشد! ابتدا /start را بزنید.")
+                return
 
-🎯 **پلن TNT:** {plan_type}
-📅 **وضعیت:** {is_active}
-📈 **استفاده امروز:** {api_stats.get('today', 0)} درخواست
-📊 **کل استفاده:** {api_stats.get('total', 0)} درخواست"""
-        
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        keyboard = [[InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")]]
-        
-        await update.message.reply_text(
-            message,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
+            # محاسبه وضعیت پلن
+            plan_type = user.tnt_plan_type or 'رایگان'
+            is_active = False
+            if user.tnt_plan_type and user.tnt_plan_type != 'FREE':
+                if user.tnt_plan_end:
+                    is_active = datetime.now() <= user.tnt_plan_end
+                else:
+                    is_active = True
+            status_text = '✅ فعال' if is_active else '❌ غیرفعال'
+            
+            # تاریخ انقضا
+            expiry_text = ""
+            if user.tnt_plan_end:
+                days_left = (user.tnt_plan_end - datetime.now()).days
+                expiry_date = user.tnt_plan_end.strftime('%Y/%m/%d')
+                if days_left >= 0:
+                    # متن بدون کاراکترهای قالب‌بندی برای جلوگیری از خطا
+                    expiry_text = f"\n📅 انقضا: {expiry_date} ({days_left} روز مانده)"
+                else:    
+                    expiry_text = f"\n📅 انقضا: {expiry_date} (منقضی شده)"
+            
+            # شمارش درخواست‌های API (اختیاری)
+            today_count = session.query(ApiRequest).filter(
+                ApiRequest.user_id == user_id,
+                ApiRequest.created_at >= datetime.now().replace(hour=0, minute=0, second=0)
+            ).count()
+            
+            total_count = session.query(ApiRequest).filter_by(user_id=user_id).count()
+            
+            # ساخت پیام نهایی (بدون کاراکترهای ** برای اطمینان)
+            message = f"""📊 وضعیت اشتراک شما
+
+🎯 پلن TNT: {plan_type}
+📅 وضعیت: {status_text}{expiry_text}
+📈 استفاده امروز: {today_count} درخواست
+📊 کل استفاده: {total_count} درخواست"""
+            
+            # ساخت دکمه
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            keyboard = [[InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")]]
+            
+            # **تغییر اصلی اینجاست: حذف parse_mode**
+            await update.message.reply_text(
+                message,
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            
     except Exception as e:
-        print(f"Error in status_command: {e}")
+        # برای دیباگ بهتر، لاگ خطا را نگه می‌داریم
+        logger.error(f"Error in status_command: {e}") 
         await update.message.reply_text("❌ خطا در دریافت اطلاعات.")
 
-# تابع /help
+# تابع /help (نسخه اصلاح شده بدون ایموجی)
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """راهنمای کامل دستورات ربات"""
-    help_text = """🤖 **راهنمای ربات نارموون**
+    help_text = """راهنمای ربات نارموون
 
-🏠 **منوهای اصلی:**
+منوهای اصلی:
 /start - شروع ربات
 /crypto - منوی رمزارزها
 /analyze - تحلیل نمودار
 /coach - مربی ترید
 
-💰 **اشتراک و حساب:**
+اشتراک و حساب:
 /subscription - خرید اشتراک
 /status - وضعیت اشتراک من
 /referral - پنل رفرال
 
-ℹ️ **راهنمایی:**
+راهنمایی:
 /help - این راهنما
 /support - پشتیبانی
 /cancel - لغو عملیات
 
-💡 **نکته:** برای شروع، دستور /start را بزنید!"""
-    
+نکته: برای شروع، دستور /start را بزنید!"""
+
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-    keyboard = [[InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")]]
+    keyboard = [[InlineKeyboardButton("منوی اصلی", callback_data="main_menu")]]
     await update.message.reply_text(
         help_text,
         reply_markup=InlineKeyboardMarkup(keyboard),
