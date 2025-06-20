@@ -635,29 +635,37 @@ async def receive_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
         menu_button = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")]])
         
         # نمایش خلاصه انتخاب‌ها و نتیجه
-        selected_market = context.user_data.get('selected_market', 'نامشخص')
-        selected_timeframe = context.user_data.get('selected_timeframe', 'نامشخص')
-        selected_strategy = context.user_data.get('selected_strategy', 'نامشخص')
-        market_name = MARKETS.get(selected_market, 'نامشخص')
-        strategy_name = STRATEGIES.get(selected_strategy, 'نامشخص')
-        
-        summary = f"📊 تحلیل شخصی‌سازی شده نارموون\n\n"
-        summary += f"🎯 بازار: {market_name}\n"
-        summary += f"⏰ تایم‌فریم: {selected_timeframe}\n"
-        summary += f"🔧 استراتژی: {strategy_name}\n"
-        
-        # اضافه کردن آمار استفاده
-        with db_manager.get_session() as session:
-            tnt_repo = TntRepository(session)
-            updated_limit_check = tnt_repo.check_analysis_limit(user_id)
-        if updated_limit_check["allowed"]:
-            summary += f"📈 باقی‌مانده ماهانه: {updated_limit_check.get('remaining_monthly', 'نامشخص')} تحلیل\n"
-            summary += f"⏱️ باقی‌مانده ساعتی: {updated_limit_check.get('remaining_hourly', 'نامشخص')} تحلیل\n"
-        
-        summary += f"{'═' * 30}\n\n"
-        
-        # استفاده از تابع تقسیم پیام
-        full_message = summary + result
+        # بررسی نوع تحلیل برای تعیین نمایش header
+        analysis_type = context.user_data.get('selected_analysis_type', 'classic')
+
+        # فقط برای تحلیل کلاسیک هدر را بساز
+        if analysis_type == 'classic':
+            selected_market = context.user_data.get('selected_market', 'نامشخص')
+            selected_timeframe = context.user_data.get('selected_timeframe', 'نامشخص')
+            selected_strategy = context.user_data.get('selected_strategy', 'نامشخص')
+            market_name = MARKETS.get(selected_market, 'نامشخص')
+            strategy_name = STRATEGIES.get(selected_strategy, 'نامشخص')
+            
+            summary = f"📊 تحلیل شخصی‌سازی شده نارموون\n\n"
+            summary += f"🎯 بازار: {market_name}\n"
+            summary += f"⏰ تایم‌فریم: {selected_timeframe}\n"
+            summary += f"🔧 استراتژی: {strategy_name}\n"
+
+            # اضافه کردن آمار استفاده
+            with db_manager.get_session() as session:
+                tnt_repo = TntRepository(session)
+                updated_limit_check = tnt_repo.check_analysis_limit(user_id)
+            if updated_limit_check["allowed"]:
+                summary += f"📈 باقی‌مانده ماهانه: {updated_limit_check.get('remaining_monthly', 'نامشخص')} تحلیل\n"
+                summary += f"⏱️ باقی‌مانده ساعتی: {updated_limit_check.get('remaining_hourly', 'نامشخص')} تحلیل\n"
+            
+            summary += f"{'═' * 30}\n\n"
+            full_message = summary + result
+
+        else:  # برای تحلیل مدرن و سایر انواع تحلیل
+            full_message = result
+
+        # ارسال پیام نهایی
         await send_long_message(update, context, full_message)
 
         # ارسال دکمه منو در پیام جداگانه
