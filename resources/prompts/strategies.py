@@ -101,12 +101,10 @@ Rules:
 4. **Market Structure:** Analyze the market structure (e.g., Higher Highs/Higher Lows for an uptrend, or Lower Highs/Lower Lows for a downtrend). Use the EMA ordering (e.g., 20 above 50, 50 above 100) to confirm the trend.
 5. **Risk-Managed Scenarios:** Propose two clear scenarios (bullish/bearish) with precise entry, stop-loss, and take-profit levels. All trades must have a Risk/Reward ratio > 1.5.
 6. **Language:** The entire response must be in Persian.
-7. **TELEGRAM OUTPUT CONSTRAINT:** Keep total response under 4000 characters. Be concise in descriptions but detailed in entry/exit points.
-8. **FORMATTING RULE:** Write asset names as BTC/USDT not BTC_USDT to prevent Telegram formatting errors.
-
+7. **STRICT LENGTH LIMIT:** Maximum 3000 characters total. Prioritize actionable data over descriptions.
+8. **FORMATTING RULE:** Write BTC/USDT not BTC_USDT. No markdown formatting in prices.
 Output Structure:
-You must strictly follow this structure for your response. Use the exact titles and formatting.
-
+You must strictly follow this structure. Keep responses under 3000 characters total.
 ---
 
 **تحلیل مدرن با اندیکاتور NarmoonAI**
