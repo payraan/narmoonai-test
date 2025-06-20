@@ -161,8 +161,8 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 TntUsageTracking.user_id == user_id
             ).scalar() or 0
 
-# ساخت پیام نهایی
-message = f"""📊 وضعیت اشتراک شما
+            # ساخت پیام نهایی
+            message = f"""📊 وضعیت اشتراک شما
 
 🎯 پلن TNT: {plan_type}
 📅 وضعیت: {status_text}{expiry_text}
