@@ -325,12 +325,54 @@ class TntRepository:
                     "message": "اشتراک شما منقضی شده است"
                 }
             
-            # TODO: منطق بررسی محدودیت ساعتی و ماهانه
-            # فعلاً موقتاً اجازه می‌دهیم
+    # بررسی محدودیت ساعتی و ماهانه از جدول TntUsageTracking
+            
+            now = datetime.now()
+            today = now.date()
+            current_hour = now.hour
+            
+            # محاسبه استفاده ساعتی (ساعت جاری)
+            hourly_usage = self.db_session.query(TntUsageTracking).filter_by(
+                user_id=user_id,
+                usage_date=today,
+                usage_hour=current_hour
+            ).first()
+            
+            current_hour_count = hourly_usage.analysis_count if hourly_usage else 0
+            
+            # محاسبه استفاده ماهانه (30 روز گذشته)
+            month_ago = today - timedelta(days=30)
+            monthly_usage = self.db_session.query(
+                func.sum(TntUsageTracking.analysis_count)
+            ).filter(
+                TntUsageTracking.user_id == user_id,
+                TntUsageTracking.usage_date >= month_ago
+            ).scalar() or 0
+            
+            # بررسی محدودیت‌ها
+            if current_hour_count >= user.tnt_hourly_limit:
+                return {
+                    "allowed": False,
+                    "reason": "hourly_limit",
+                    "message": "سقف ساعتی به پایان رسیده است",
+                    "usage": current_hour_count,
+                    "limit": user.tnt_hourly_limit
+                }
+            
+            if monthly_usage >= user.tnt_monthly_limit:
+                return {
+                    "allowed": False,
+                    "reason": "monthly_limit", 
+                    "message": "سقف ماهانه به پایان رسیده است",
+                    "usage": monthly_usage,
+                    "limit": user.tnt_monthly_limit
+                }
+            
+            # اجازه داده شد
             return {
                 "allowed": True,
-                "remaining_monthly": user.tnt_monthly_limit,
-                "remaining_hourly": user.tnt_hourly_limit
+                "remaining_monthly": max(0, user.tnt_monthly_limit - monthly_usage),
+                "remaining_hourly": max(0, user.tnt_hourly_limit - current_hour_count)
             }
             
         except Exception as e:
@@ -342,14 +384,46 @@ class TntRepository:
             }
 
     def record_analysis_usage(self, user_id: int):
-        """Records a new TNT analysis usage for the user."""
+        """
+        Records or updates an analysis usage record in the TntUsageTracking table.
+        Implements an "upsert" logic.
+        """
         try:
-            # TODO: ثبت استفاده جدید در جدول TntUsageTracking
-            # فعلاً فقط لاگ می‌کنیم
-            logger.info(f"Recording TNT usage for user {user_id}")
-            
+            from datetime import datetime
+            from .models import TntUsageTracking  # Make sure TntUsageTracking is imported
+
+            now = datetime.now()
+            today = now.date()
+            current_hour = now.hour
+
+            # Check for an existing record for the current user and hour
+            existing_record = self.db_session.query(TntUsageTracking).filter_by(
+                user_id=user_id,
+                usage_date=today,
+                usage_hour=current_hour
+            ).first()
+
+            if existing_record:
+                # If it exists, increment the analysis count
+                existing_record.analysis_count += 1
+                logger.info(f"Incremented analysis count for user {user_id} at {today} hour {current_hour}")
+            else:
+                # If not, create a new record
+                new_record = TntUsageTracking(
+                    user_id=user_id,
+                    usage_date=today,
+                    usage_hour=current_hour,
+                    analysis_count=1  # Starts at 1
+                )
+                self.db_session.add(new_record)
+                logger.info(f"Created new analysis record for user {user_id} at {today} hour {current_hour}")
+
+            self.db_session.commit()
+
         except Exception as e:
-            logger.error(f"Error in record_analysis_usage: {e}")
+            self.db_session.rollback()
+            logger.error(f"Error in record_analysis_usage (upsert): {e}")
+            raise
 
     def get_user_plan(self, user_id: int) -> dict:
         """دریافت اطلاعات پلن فعال کاربر"""
