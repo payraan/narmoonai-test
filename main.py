@@ -17,7 +17,8 @@ from config.constants import (
 )
 
 from database import init_db, db_manager
-from database.models import User, ApiRequest
+from database.models import User, ApiRequest, TntUsageTracking
+from sqlalchemy import func
 
 # Import handlers (نسخه اصلاح و تمیز شده)
 from handlers.handlers import (
@@ -148,15 +149,20 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     expiry_text = f"\n📅 انقضا: {expiry_date} (منقضی شده)"
             
             # شمارش درخواست‌های API (اختیاری)
-            today_count = session.query(ApiRequest).filter(
-                ApiRequest.user_id == user_id,
-                ApiRequest.created_at >= datetime.now().replace(hour=0, minute=0, second=0)
-            ).count()
-            
-            total_count = session.query(ApiRequest).filter_by(user_id=user_id).count()
-            
-            # ساخت پیام نهایی (بدون کاراکترهای ** برای اطمینان)
-            message = f"""📊 وضعیت اشتراک شما
+            today = datetime.now().date()
+            # استفاده امروز (مجموع تحلیل‌های امروز)
+            today_count = session.query(func.sum(TntUsageTracking.analysis_count)).filter(
+                TntUsageTracking.user_id == user_id,
+                TntUsageTracking.usage_date == today
+            ).scalar() or 0
+
+            # کل استفاده (مجموع تمام تحلیل‌ها)
+            total_count = session.query(func.sum(TntUsageTracking.analysis_count)).filter(
+                TntUsageTracking.user_id == user_id
+            ).scalar() or 0
+
+# ساخت پیام نهایی
+message = f"""📊 وضعیت اشتراک شما
 
 🎯 پلن TNT: {plan_type}
 📅 وضعیت: {status_text}{expiry_text}
