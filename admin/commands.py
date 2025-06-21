@@ -183,13 +183,20 @@ async def admin_activate_tnt(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
             
         user_id, plan_name, duration = int(args[0]), args[1].upper(), int(args[2])
-        with db_manager.get_session() as session:
+        with db_manager.get_session() as session:   
             tnt_repo = TntRepository(session)
             result = tnt_repo.activate_tnt_subscription(user_id, plan_name, duration)
-        
+            
+            # اگر موفق بود، is_active رو هم آپدیت کن
+            if result.get("success"):
+                user = session.query(User).filter_by(user_id=user_id).first()
+                if user:
+                    user.is_active = True
+                    session.commit()
+
         if result.get("success"):
             await update.message.reply_text(f"✅ اشتراک TNT کاربر {user_id} با پلن {plan_name} فعال شد.")
-            
+
             # ارسال پیام به کاربر
             try:
                 user_message = f"""🎉 تبریک! اشتراک TNT شما فعال شد!
