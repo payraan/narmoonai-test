@@ -99,6 +99,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # پردازش کد رفرال اگر وجود داشته باشد
     if context.args and len(context.args) > 0:
         referral_param = context.args[0]
+        print(f"🎯 DEBUG: Referral param received: {referral_param}")
         if referral_param.startswith("REF"):
             # پردازش رفرال
             with db_manager.get_session() as session:
