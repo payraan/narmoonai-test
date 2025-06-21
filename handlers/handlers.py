@@ -1087,7 +1087,7 @@ async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
         # دریافت آمار رفرال کاربر با Repository
         with db_manager.get_session() as session:
             repo = AdminRepository(session)
-            stats = repo.get_referral_overview()
+            stats = repo.get_user_referral_stats(user_id)
         
         if not stats.get('success'):
             await query.edit_message_text(
@@ -1109,27 +1109,27 @@ async def show_referral_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
 {referral_link}
 
 📊 آمار خریداران:
-✅ خریداران موفق: {len(stats.get('referrers', []))} نفر
+✅ خریداران موفق: {stats.get('total_referrals', 0)} نفر
 
 💵 وضعیت مالی:
-💰 کل درآمد: ${stats.get('system_stats', {}).get('total_commissions_amount', 0):.2f}
-💳 قابل برداشت: ${stats.get('system_stats', {}).get('pending_payments', 0):.2f}
-🏦 پرداخت شده: ${stats.get('system_stats', {}).get('paid_amount', 0):.2f}
+💰 کل درآمد: ${stats.get('total_earned', 0):.2f}
+💳 قابل برداشت: ${stats.get('pending_amount', 0):.2f}
+🏦 پرداخت شده: ${stats.get('paid_amount', 0):.2f}
 
 """
         
         # اضافه کردن لیست خریداران
-        referrers = stats.get('referrers', [])
-        if referrers:
+        buyers = stats.get('buyers', [])
+        if buyers:
             message += "👥 جزئیات خریداران:\n"
-            for i, buyer in enumerate(referrers[:5], 1):  # فقط 5 تای اول
+            for i, buyer in enumerate(buyers[:5], 1):  # فقط 5 تای اول
                 plan_emoji = "📅"
-                status_emoji = "💰"
+                status_emoji = "💰" if buyer.get('status') == 'paid' else "⏳"
                 message += f"{i}. {status_emoji} {buyer.get('username', 'کاربر')}\n"
-                message += f"   {plan_emoji} رفرال - ${buyer.get('total_earned', 0):.2f}\n"
+                message += f"   {plan_emoji} {buyer.get('plan_type')} - ${buyer.get('amount', 0):.2f}\n"
 
-            if len(referrers) > 5:
-                message += f"... و {len(referrers) - 5} نفر دیگر\n"
+            if len(buyers) > 5:
+                message += f"... و {len(buyers) - 5} نفر دیگر\n"
         
         message += f"""
 📞 برای دریافت پول:

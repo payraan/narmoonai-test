@@ -271,31 +271,9 @@ class AdminRepository:
     def get_user_referral_details(self, user_id: int) -> dict:
         """دریافت جزئیات رفرال کاربر"""
         try:
-            user = self.db_session.query(User).filter_by(user_id=user_id).first()
-            if not user:
-                return {"success": False, "error": "کاربر یافت نشد"}
-            
-            referrals = self.db_session.query(Referral).filter_by(
-                referrer_id=user_id
-            ).all()
-            
-            buyers = []
-            for ref in referrals:
-                if ref.purchased:
-                    buyers.append({
-                        "username": ref.referred.username or "Unknown",
-                        "purchase_date": ref.purchase_date,
-                        "commission": ref.commission_amount
-                    })
-            
-            return {
-                "success": True,
-                "referral_code": f"REF{user_id}",
-                "buyers": buyers
-            }
+            return self.get_user_referral_stats(user_id)
         except Exception as e:
-            logger.error(f"Error in get_user_referral_details: {e}")
-            return {"success": False, "error": str(e)}  
+            return {"success": False, "error": str(e)}
 
     def create_referral_relationship(self, referral_code: str, new_user_id: int) -> dict:
         """ایجاد رابطه رفرال جدید"""
@@ -342,6 +320,54 @@ class AdminRepository:
             
         except Exception as e:
             self.db_session.rollback()
+            return {"success": False, "error": str(e)}  
+
+    def get_user_referral_stats(self, user_id: int) -> dict:
+        """دریافت آمار شخصی رفرال کاربر"""
+        try:
+            # پیدا کردن تمام رفرال‌های این کاربر
+            referrals = self.db_session.query(Referral).filter_by(
+                referrer_id=user_id
+            ).all()
+            
+            # پیدا کردن کمیسیون‌های این کاربر
+            commissions = self.db_session.query(Commission).filter_by(
+                referrer_id=user_id
+            ).all()
+            
+            # محاسبه آمار
+            total_referrals = len(referrals)
+            total_earned = sum(c.total_amount for c in commissions)
+            pending_amount = sum(c.total_amount for c in commissions if c.status == 'pending')
+            paid_amount = sum(c.total_amount for c in commissions if c.status == 'paid')
+            
+            # لیست خریداران
+            buyers = []
+            for commission in commissions:
+                # پیدا کردن کاربر خریدار
+                buyer = self.db_session.query(User).filter_by(
+                    user_id=commission.referred_id
+                ).first()
+                
+                if buyer:
+                    buyers.append({
+                        "username": buyer.username or f"User_{buyer.user_id}",
+                        "plan_type": commission.plan_type,
+                        "amount": float(commission.total_amount),
+                        "date": commission.created_at.strftime('%Y-%m-%d'),
+                        "status": commission.status
+                    })
+            
+            return {
+                "success": True,
+                "total_referrals": total_referrals,
+                "total_earned": float(total_earned),
+                "pending_amount": float(pending_amount),
+                "paid_amount": float(paid_amount),
+                "buyers": buyers
+            }
+            
+        except Exception as e:
             return {"success": False, "error": str(e)}  
 
 class TntRepository:
