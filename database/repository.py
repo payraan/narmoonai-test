@@ -297,6 +297,53 @@ class AdminRepository:
             logger.error(f"Error in get_user_referral_details: {e}")
             return {"success": False, "error": str(e)}  
 
+    def create_referral_relationship(self, referral_code: str, new_user_id: int) -> dict:
+        """ایجاد رابطه رفرال جدید"""
+        try:
+            # استخراج referrer_id از کد رفرال
+            if not referral_code.startswith("REF"):
+                return {"success": False, "error": "کد رفرال نامعتبر"}
+            
+            # حذف "REF" و "TEMP" از کد
+            referrer_part = referral_code[3:]  # حذف REF
+            if referrer_part.endswith("TEMP"):
+                referrer_part = referrer_part[:-4]  # حذف TEMP
+            
+            try:
+                referrer_id = int(referrer_part)
+            except ValueError:
+                return {"success": False, "error": "فرمت کد نامعتبر"}
+            
+            # بررسی وجود referrer
+            referrer = self.db_session.query(User).filter_by(user_id=referrer_id).first()
+            if not referrer:
+                return {"success": False, "error": "کاربر دعوت‌کننده یافت نشد"}
+            
+            # بررسی تکراری نبودن
+            existing = self.db_session.query(Referral).filter_by(
+                referrer_id=referrer_id, 
+                referred_id=new_user_id
+            ).first()
+            
+            if existing:
+                return {"success": False, "error": "رفرال قبلاً ثبت شده"}
+            
+            # ایجاد رفرال جدید
+            new_referral = Referral(
+                referrer_id=referrer_id,
+                referred_id=new_user_id,
+                status='pending'
+            )
+            
+            self.db_session.add(new_referral)
+            self.db_session.commit()
+            
+            return {"success": True, "referrer_id": referrer_id}
+            
+        except Exception as e:
+            self.db_session.rollback()
+            return {"success": False, "error": str(e)}  
+
 class TntRepository:
     """Repository for TNT-related operations for users."""
 

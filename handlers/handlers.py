@@ -101,8 +101,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         referral_param = context.args[0]
         if referral_param.startswith("REF"):
             # پردازش رفرال
-            from database import create_referral_relationship
-            result = create_referral_relationship(referral_param, user_id)
+            with db_manager.get_session() as session:
+                admin_repo = AdminRepository(session)
+                result = admin_repo.create_referral_relationship(referral_param, user_id)
             
             if result.get("success"):
                 # نمایش پیام موفقیت به کاربر جدید
