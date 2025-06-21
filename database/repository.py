@@ -360,6 +360,7 @@ class AdminRepository:
             
             return {
                 "success": True,
+                "referral_code": f"REF{user_id}TEMP",
                 "total_referrals": total_referrals,
                 "total_earned": float(total_earned),
                 "pending_amount": float(pending_amount),
