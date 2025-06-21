@@ -105,7 +105,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with db_manager.get_session() as session:
                 admin_repo = AdminRepository(session)
                 result = admin_repo.create_referral_relationship(referral_param, user_id)
-            
+                print(f"🎯 DEBUG: Referral result: {result}")
+
             if result.get("success"):
                 # نمایش پیام موفقیت به کاربر جدید
                 referrer_id = result.get("referrer_id")
