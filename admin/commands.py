@@ -193,6 +193,9 @@ async def admin_activate_tnt(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 if user:
                     user.is_active = True
                     session.commit()
+                    # محاسبه کمیسیون رفرال
+                    admin_repo = AdminRepository(session)
+                    admin_repo.calculate_referral_commission(user_id, plan_name, duration)
 
         if result.get("success"):
             await update.message.reply_text(f"✅ اشتراک TNT کاربر {user_id} با پلن {plan_name} فعال شد.")

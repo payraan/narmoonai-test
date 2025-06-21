@@ -371,6 +371,55 @@ class AdminRepository:
         except Exception as e:
             return {"success": False, "error": str(e)}  
 
+    def calculate_referral_commission(self, user_id: int, plan_name: str, duration: int) -> dict:
+        """محاسبه و ثبت کمیسیون رفرال"""
+        try:
+            # پیدا کردن رفرال این کاربر
+            referral = self.db_session.query(Referral).filter_by(
+                referred_id=user_id
+            ).first()
+            
+            if not referral:
+                return {"success": False, "error": "رفرال یافت نشد"}
+            
+            # محاسبه مبلغ کمیسیون بر اساس پلن
+            commission_rates = {
+                "TMT_MINI": {"rate": 0.20, "base_price": 6},    # 20% از 6$
+                "TNT_PLUS": {"rate": 0.25, "base_price": 10},   # 25% از 10$
+                "TNT_MAX": {"rate": 0.30, "base_price": 22}     # 30% از 22$
+            }
+            
+            plan_info = commission_rates.get(plan_name, {"rate": 0.20, "base_price": 6})
+            base_amount = plan_info["base_price"] * (duration / 30)  # قیمت ماهانه * تعداد ماه
+            commission_amount = base_amount * plan_info["rate"]
+            bonus_amount = 0  # در آینده می‌تونیم بونوس اضافه کنیم
+            total_amount = commission_amount + bonus_amount
+            
+            # ثبت کمیسیون در دیتابیس
+            commission = Commission(
+                referrer_id=referral.referrer_id,
+                referred_id=user_id,
+                plan_type=plan_name,
+                commission_amount=commission_amount,
+                bonus_amount=bonus_amount,
+                total_amount=total_amount,
+                status='pending'
+            )
+            
+            self.db_session.add(commission)
+            self.db_session.commit()
+            
+            return {
+                "success": True,
+                "commission_amount": float(commission_amount),
+                "total_amount": float(total_amount),
+                "referrer_id": referral.referrer_id
+            }
+            
+        except Exception as e:
+            self.db_session.rollback()
+            return {"success": False, "error": str(e)}
+
 class TntRepository:
     """Repository for TNT-related operations for users."""
 
